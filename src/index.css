@@ -1,0 +1,83 @@
+/* ======= Font family =============== */
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins&display=swap");
+
+/* =================== initials ================= */
+* {
+  box-sizing: border-box;
+  outline: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  outline: none;
+  color: #333;
+  background: #fffdf6;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Oswald", sans-serif;
+  font-weight: 500;
+  color: #1f2937;
+}
+p,
+span,
+button,
+li,
+a,
+label,
+textarea,
+select,
+option,
+input {
+  font-family: "Poppins", sans-serif;
+  font-weight: 400;
+  color: #374151;
+}
+.dialpad button:hover span {
+  color: #fff !important;
+}
+
+/* color #67308F */
+
+.Toastify__toast {
+  height: 50px;
+  padding: 10px 15px;
+  font-size: 14px;
+  font-family: "Poppins", sans-serif;
+}
+
+
+/* scroll css */
+body::-webkit-scrollbar-track,
+.overflowScroll::-webkit-scrollbar-track
+{
+	-webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.1);
+	background-color: rgba(0, 0, 0, 0.205);
+}
+
+body::-webkit-scrollbar,
+.overflowScroll::-webkit-scrollbar
+{
+	width: 6px;
+	background-color: #F5F5F5;
+}
+
+body::-webkit-scrollbar-thumb,
+.overflowScroll::-webkit-scrollbar-thumb
+{
+	background-color: #67308F;
+	border: 0px solid #eee;
+  border-radius: 10px;
+}
+
+.boxShaodWrap:hover{
+  box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s linear;
+}
