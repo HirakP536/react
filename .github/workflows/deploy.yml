@@ -8,13 +8,12 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
-
-  steps:
-    - name: Pull latest code
-      run: |
-        $LogPath = "C:/logs/repo-name"
-        if (!(Test-Path $LogPath)) { New-Item -ItemType Directory -Path $LogPath }
-        $LogFile = "$LogPath/deploy.log"
-        Add-Content -Path $LogFile -Value "`n===== Pulling latest code - $(Get-Date) ====="
-        git -C "E:\test\react\react" pull origin main
-      shell: powershell
+    steps:
+      - name: Pull latest code
+        run: |
+          $LogPath = "C:/logs/repo-name"
+          if (!(Test-Path $LogPath)) { New-Item -ItemType Directory -Path $LogPath }
+          $LogFile = "$LogPath/deploy.log"
+          Add-Content -Path $LogFile -Value "`n===== Pulling latest code - $(Get-Date) ====="
+          git -C "E:\test\react\react" pull origin main
+        shell: powershell
