@@ -41,20 +41,22 @@ const StatusFilterDropdown = ({ statuses = [], selectedStatus, onStatusChange, i
     : statuses;
 
   // All statuses option
-  const allOption = { id: "", label: "All Statuses" };
+  const allOption = { id: "", label: "All Status" };
   
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative w-full sm:w-auto" ref={dropdownRef}>
       <div 
-        className={`flex items-center justify-between px-4 py-2 border border-gray-200 rounded-md bg-white cursor-pointer ${isLoading ? 'opacity-75' : ''}`}
+        className={`flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-200 rounded-md bg-white cursor-pointer ${
+          isLoading ? "opacity-75" : ""
+        }`}
         onClick={() => !isLoading && setIsOpen(!isOpen)}
       >
         <div className="flex items-center">
-          <span className="text-sm font-medium">
-            {selectedStatus ? selectedStatus : 'All Statuses'}
+          <span className="text-xs sm:text-sm font-medium truncate max-w-[150px] sm:max-w-none">
+            {selectedStatus ? selectedStatus : "All Status"}
           </span>
           {isLoading && (
-            <div className="ml-2 animate-spin h-4 w-4 border-t-2 border-secondary rounded-full"></div>
+            <div className="ml-2 animate-spin h-3 w-3 sm:h-4 sm:w-4 border-t-2 border-secondary rounded-full" />
           )}
         </div>
         <svg 
@@ -68,7 +70,7 @@ const StatusFilterDropdown = ({ statuses = [], selectedStatus, onStatusChange, i
       </div>
 
       {isOpen && (
-        <div className="absolute z-10 w-64 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-80 overflow-y-auto">
+        <div className="absolute z-10 w-full sm:w-64 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 sm:max-h-80 overflow-y-auto">
           {/* Search input */}
           <div className="p-2 border-b border-gray-200 sticky top-0 bg-white z-20">
             <input
@@ -83,7 +85,7 @@ const StatusFilterDropdown = ({ statuses = [], selectedStatus, onStatusChange, i
           
           {/* All Statuses option */}
           <div
-            className={`px-4 py-2 text-sm cursor-pointer hover:bg-secondary hover:text-white border-b border-gray-100 ${
+            className={`px-4 py-2 text-sm cursor-pointer hover:bg-secondary capitalize hover:text-white border-b border-gray-100 ${
               !selectedStatus ? 'bg-secondary text-white' : ''
             } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={() => !isLoading && handleResetFilter()}

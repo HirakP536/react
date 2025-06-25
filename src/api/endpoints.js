@@ -9,6 +9,7 @@ const endpoints = {
     stats: `/dashboard/stats`,
     getCompanyList: `/company/listCompany`,
     getCallDetail: `proxyapi.php?reqtype=INFO&info=cdrs&format=json&`,
+    updateCompanyPermission: `/company/updateCompanyPermissions/`,
   },
   user: {
     userList: `/user/listUser/`,
@@ -17,6 +18,7 @@ const endpoints = {
     extensionList: `proxyapi.php?reqtype=info&info=extensions&format=json`,
     getDidList: `proxyapi.php?reqtype=info&info=dids&format=json`,
     updateUser: `/user/editTokenUpdate`,
+    newUserUpdate: `user/resetUserApp`
   },
   history: {
     getHistory: `proxyapi.php?reqtype=INFO&info=cdrs&`,
@@ -38,7 +40,8 @@ const endpoints = {
     addContact: `/user/addContact`,
     updateContact: `/user/updateContact`,
     deleteContact: `/user/deleteContact`,
-  },
+    getSupportContact: `/user/help-support/`,
+  },  
 };
 
 export default endpoints;

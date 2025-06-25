@@ -10,12 +10,17 @@ import didReducer from "./slices/didSlice";
 import sipReducer from "./slices/sipSlice";
 import callFeatureReducer from "./slices/callFeatureSlice";
 import userReducer from "./slices/userSlice";
-// import callDetails from "./slices/callDetailsSlice";
+import voiceMailReducer from "./slices/voicemailSlice";
+import chatListReducer from "./slices/chatListSlice";
+import contactReducer from "./slices/contactSlice";
+import contactsManagementReducer from "./slices/contactsManagementSlice";
+import historyReducer from "./slices/historySlice";
+import ipAddressReducer from "./slices/ipAddressSlice";
 
 const persistConfig = {
   key: 'root',
   storage,
-  blacklist: ['sip','callDetails'],
+  blacklist: ['sip','callDetails','callData'],
 };
 
 const rootReducer = combineReducers({
@@ -25,7 +30,12 @@ const rootReducer = combineReducers({
   sip: sipReducer,
   callFeature: callFeatureReducer,
   users: userReducer,
-  // callDetails: callDetails,
+  voiceMail: voiceMailReducer,
+  chatList: chatListReducer,
+  contacts: contactReducer,
+  contactsManagement: contactsManagementReducer,
+  history: historyReducer,
+  ipAddress: ipAddressReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -34,7 +44,7 @@ export const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: false, // Disable serializable check to avoid slowdown warning
+      serializableCheck: false,
       immutableCheck: false,
     }),
 });

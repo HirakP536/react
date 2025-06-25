@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import speakerIcon from "../../../assets/phone/low-volume.svg";
 import * as SIP from "sip.js";
 
-const SpeakerSelector = ({ session, sessionRef }) => {
+const SpeakerSelector = ({ session, sessionRef,isPhoneModule=false }) => {
   const audioRef = useRef(null);
   const selectorRef = useRef(null);
   const [audioOutputs, setAudioOutputs] = useState([]);
@@ -84,8 +84,7 @@ const SpeakerSelector = ({ session, sessionRef }) => {
         typeof audioRef.current.setSinkId === "function"
       ) {
         await audioRef.current.setSinkId(deviceId);
-        setSelectedOutput(deviceId);
-        console.log(`🔈 Output device set to: ${deviceId}`);
+        setSelectedOutput(deviceId);;
       } else {
         console.warn("setSinkId is not supported in this browser.");
       }
@@ -112,7 +111,7 @@ const SpeakerSelector = ({ session, sessionRef }) => {
   };
 
   return (
-    <div ref={selectorRef} className="relative flex items-center justify-center">
+    <div ref={selectorRef} className="flex items-center justify-center">
 
       <audio
         ref={audioRef}
@@ -120,22 +119,27 @@ const SpeakerSelector = ({ session, sessionRef }) => {
       />
       <button
         onClick={handleSpeakerClick}
-        className="relative flex items-center justify-center w-16 h-16 bg-[#aa93c752] rounded-full group"
+        className={`relative flex items-center justify-center ${
+        isPhoneModule ? "sm:w-15 sm:h-15 w-12 h-12" : "w-12 h-12"
+      } bg-[#aa93c752] rounded-full group`}
         disabled={!canMute}
         style={{ opacity: canMute ? 1 : 0.5 }}
       >
         <img
           src={speakerIcon}
           alt=""
-          className="max-w-7 h-auto transition-transform duration-200 ease-linear group-hover:scale-[1.2]"
+          className={`${
+          isPhoneModule ? "sm:max-w-7 max-w-5" : "max-w-5"
+        } h-auto transition-transform duration-200 ease-linear group-hover:scale-[1.2]`}
         />
       </button>
 
       {open && audioOutputs.length > 0 && (
-        <div className="absolute z-10 flex flex-col items-start right-0 w-full max-w-[400px] p-2 mt-2 bg-white border border-gray-300">
+        <div className="absolute z-10 flex flex-col items-start sm:right-auto right-0 w-full max-w-[400px] p-2 mt-2 bg-secondary rounded-2xl !text-white">
           <select
             value={selectedOutput}
             onChange={(e) => changeOutputDevice(e.target.value)}
+            className="!text-white text-sm px-2.5"
           >
             {audioOutputs.map((device) => (
               <option key={device.deviceId} value={device.deviceId}>

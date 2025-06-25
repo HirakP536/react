@@ -15,8 +15,7 @@ export const setHoldState = async (session, hold) => {
   };
 
   try {
-    await session.invite(options); // re-INVITE to update hold state
-    console.log(`🎯 Session ${hold ? "held" : "unheld"} successfully`);
+    await session.invite(options);;
   } catch (err) {
     console.error(`❌ Failed to ${hold ? "hold" : "unhold"} session`, err);
     throw err;

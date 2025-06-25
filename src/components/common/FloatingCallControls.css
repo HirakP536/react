@@ -1,0 +1,104 @@
+/* FloatingCallControls.css */
+.floating-call-controls {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  width: 300px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.floating-call-controls .call-info {
+  padding: 15px;
+}
+
+.floating-call-controls .call-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.floating-call-controls .call-type {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.floating-call-controls .call-type.incoming {
+  background-color: rgba(0, 128, 0, 0.15);
+  color: #006400;
+}
+
+.floating-call-controls .call-type.outgoing {
+  background-color: rgba(0, 0, 255, 0.15);
+  color: #00008B;
+}
+
+.floating-call-controls .call-duration {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.floating-call-controls .caller-info {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floating-call-controls .call-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.floating-call-controls .btn-hang-up {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 1;
+  font-weight: 600;
+}
+
+.floating-call-controls .btn-switch {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 1;
+  font-weight: 600;
+}
+
+.floating-call-controls .no-active-call {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.floating-call-controls .no-active-call button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .floating-call-controls {
+    width: calc(100% - 40px);
+    max-width: 400px;
+  }
+}

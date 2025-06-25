@@ -1,11 +1,11 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useFormik } from "formik";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { addContact, updateContact } from "../../../api/contact";
 import closeIcon from "../../../assets/dashboard/close-drawer.png";
 import {
-  CommonDropdown,
-  InputComponent,
+  InputComponent
 } from "../../../components/common/InputComponent";
 import LoginButton from "../../../components/common/LoginButton";
 import {
@@ -29,7 +29,7 @@ const ContactModal = ({
     lastName: editContact?.lastName || "",
     contactPhone: editContact?.contactPhone || "",
     email: editContact?.email || "",
-    deviceType: "web", // Default value,
+    deviceType: "web",
   };
 
   const formik = useFormik({
@@ -65,7 +65,7 @@ const ContactModal = ({
     return (
       formik.values.firstName &&
       formik.values.contactPhone &&
-      !Object.keys(formik.errors).length
+      !Object.keys(formik.errors)?.length
     );
   };
 
@@ -73,6 +73,16 @@ const ContactModal = ({
     const formatted = formatUSPhone(e.target.value);
     formik.setFieldValue("contactPhone", formatted);
   };
+  const handleModalClose = () => {
+    setIsOpen(false);
+    formik.resetForm();
+    if (onClose) onClose();
+  };
+  useEffect(() => {
+    if (!isOpen) {
+      formik.resetForm();
+    }
+  }, [isOpen]);
 
   return (
     <div
@@ -92,19 +102,12 @@ const ContactModal = ({
           </h2>
           <Link
             to="#"
-            onClick={() => {
-              setIsOpen(false);
-              if (onClose) onClose();
-            }}
+            onClick={handleModalClose}
           >
             <img
               src={closeIcon}
               alt=""
               className="cursor-pointer"
-              onClick={() => {
-                setIsOpen(false);
-                if (onClose) onClose();
-              }}
             />
           </Link>
         </div>

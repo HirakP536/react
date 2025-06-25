@@ -20,6 +20,7 @@ export const forgotValidationSchema = Yup.object({
 
 // This schema is used for validating the confirm password form
 export const confirmSchema = Yup.object({
+  email: Yup.string().email("Invalid email address"),
   password: Yup.string()
     .min(6, "Password must be at least 6 characters")
     .required("Password is required"),
@@ -34,7 +35,13 @@ export const contactSchema = Yup.object({
   lastName: Yup.string(),
   email: Yup.string().email("Invalid email address"),
   contactPhone: Yup.string().required("Contact number is required"),
-  deviceType: Yup.string().oneOf(["desktop", "ios","web","android"]),
+  deviceType: Yup.string().oneOf(["desktop", "ios", "web", "android"]),
 });
 
-
+export const helpSupportSchema = Yup.object({
+  firstname: Yup.string().required("First name is required"),
+  lastname: Yup.string().required("Last name is required"),
+  email: Yup.string().email("Invalid email").required("Email is required"),
+  contact: Yup.string(),
+  message: Yup.string().required("Message is required"),
+});

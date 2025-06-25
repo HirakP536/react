@@ -43,6 +43,7 @@ const userSlice = createSlice({
       .addCase(fetchUserList.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || "Unknown error occurred";
+        state.users = [];
       });
   },
 });

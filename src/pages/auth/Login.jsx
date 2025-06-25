@@ -1,6 +1,6 @@
 import { useFormik } from "formik";
-import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router";
 import { loginUser } from "../../api/authApi";
 import AuthImg from "../../assets/auth/auth.gif";
@@ -9,13 +9,32 @@ import { InputComponent } from "../../components/common/InputComponent";
 import LoginButton from "../../components/common/LoginButton";
 import { errorToast } from "../../components/common/ToastContainer";
 import { validationSchema } from "../../schemas/authSchema";
-import { setUser } from "../../store/slices/authSlice";
+import {
+  setCompanyCode,
+  setCompanyExtension,
+  setCompanyName,
+  setNewUser,
+  setUser,
+} from "../../store/slices/authSlice";
 import housetonLogo from "../../assets/houston.png";
+import {
+  GoogleReCaptchaProvider,
+  useGoogleReCaptcha,
+} from "react-google-recaptcha-v3";
+import { fetchIpAddress } from "../../store/slices/ipAddressSlice";
 
-const Login = () => {
+const LoginComponent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { executeRecaptcha } = useGoogleReCaptcha();
+  const { ip } = useSelector((state) => state.ipAddress);
+
+  useEffect(() => {
+    if (!ip) {
+      dispatch(fetchIpAddress());
+    }
+  }, [dispatch, ip]);
 
   const formik = useFormik({
     initialValues: {
@@ -26,10 +45,29 @@ const Login = () => {
     onSubmit: async (values) => {
       setIsLoading(true);
       try {
-        const res = await loginUser(values);
+        if (!executeRecaptcha) {
+          console.warn("reCAPTCHA not yet available");
+          errorToast("Error verifying security check. Please try again.");
+          setIsLoading(false);
+          return;
+        }
+
+        const recaptchaToken = await executeRecaptcha("login");
+        let userIp = ip;
+        let payload = {
+          ...values,
+          recaptchaToken,
+          ipAddress: userIp,
+        };
+        const res = await loginUser(payload);
         dispatch(setUser(res?.data));
+        dispatch(setCompanyName(res?.data?.data?.company?.companyName));
+        dispatch(setCompanyCode(res?.data?.data?.company?.code));
+        dispatch(setCompanyExtension(res?.data?.data?.extension[0]?.extname));
         localStorage.setItem("token", res?.data?.data?.accessToken);
-        if (res?.data?.new_user) {
+        const isNewUser = res?.data?.new_user;
+        dispatch(setNewUser(isNewUser));
+        if (isNewUser) {
           navigate("/confirm-password");
         } else {
           navigate("/");
@@ -82,7 +120,7 @@ const Login = () => {
                 className="inline-block mx-1.5 max-w-4 h-auto"
                 alt="Infotech Houston"
               />{" "}
-              <b>Infotech Houston</b>
+              <b>Infotech Houston Solutions</b>
             </small>
           </footer>
         </div>
@@ -142,6 +180,16 @@ const Login = () => {
         </div>
       </div>
     </section>
+  );
+};
+
+const Login = () => {
+  return (
+    <GoogleReCaptchaProvider
+      reCaptchaKey={import.meta.env.VITE_GOOGLE_CAPTCHA_SITE_KEY}
+    >
+      <LoginComponent />
+    </GoogleReCaptchaProvider>
   );
 };
 

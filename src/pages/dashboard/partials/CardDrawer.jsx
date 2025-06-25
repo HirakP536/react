@@ -17,7 +17,7 @@ const CardDrawer = ({ title, data, isOpen, setIsOpen }) => {
   const dataArray = Array.isArray(data) ? data : data ? [data] : [];
   const filteredDataArray =
     title === "DID's"
-      ? dataArray.filter((item) => item?.[11] !== "f")
+      ? dataArray.filter((item) => item)
       : dataArray;
 
   const findUserByExtension = (extension) => {
@@ -46,7 +46,7 @@ const CardDrawer = ({ title, data, isOpen, setIsOpen }) => {
           <img src={closeIcon} alt="" />
         </button>
       </div>
-      <div className="overflow-y-auto max-h-[calc(100vh-150px)]">
+      <div className="overflow-y-auto max-h-[calc(100vh-150px)] overflowScroll">
         {filteredDataArray.length > 0 ? (
           <>
             <ul className="list-none p-0 m-0">

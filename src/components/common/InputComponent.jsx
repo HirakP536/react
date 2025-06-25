@@ -75,7 +75,7 @@ export const OTPInputComponent = ({
     const { value } = e.target;
     if (!/^\d*$/.test(value)) return;
 
-    const otp = value.slice(0, 1);
+    const otp = value?.slice(0, 1);
     handleChange(index, otp);
     if (otp && index < 5) {
       inputRefs.current[index + 1].focus();
@@ -89,7 +89,7 @@ export const OTPInputComponent = ({
   };
 
   const handlePaste = (e) => {
-    const pastedData = e.clipboardData.getData("text").slice(0, 6);
+    const pastedData = e.clipboardData.getData("text")?.slice(0, 6);
     if (/^\d{6}$/.test(pastedData)) {
       handleChange(null, pastedData.split(""));
     }
@@ -101,7 +101,7 @@ export const OTPInputComponent = ({
         Enter the OTP
       </label>
       <div className="mb-0 flex items-center gap-2">
-        {Array.from({ length: 6 }).map((_, index) => (
+        {Array?.from({ length: 6 })?.map((_, index) => (
           <input
             key={index}
             ref={(el) => (inputRefs.current[index] = el)}
@@ -140,6 +140,8 @@ export const CommonDropdown = ({
 }) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef();
+  let singleValue='';
+  if (!multiple) singleValue = options.find((opt) => opt.value === value) || {};
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -194,10 +196,10 @@ export const CommonDropdown = ({
 
   const displayLabel = () => {
     if (multiple) {
-      if (!Array.isArray(value) || value.length === 0) return "Select " + name;
+      if (!Array?.isArray(value) || value?.length === 0) return "Select " + name;
       return value.map((v) => v?.label).join(", ");
     } else {
-      return value?.label || "Select " + name;
+      return value?.label || singleValue.label|| "Select " + name;
     }
   };
 
@@ -221,7 +223,7 @@ export const CommonDropdown = ({
       </div>
 
       {open && (
-        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md max-h-60 overflow-auto shadow">
+        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md max-h-60 overflow-auto shadow overflowScroll">
           {options.map((opt) => (
             <div
               key={`${opt.value.phone || opt.value}-${opt.label}`}
@@ -232,7 +234,7 @@ export const CommonDropdown = ({
                   : "hover:bg-blue-100"
               }`}
             >
-              <span className={isSelected(opt.value) && "!text-white"}>
+              <span className={isSelected(opt.value) ?"!text-white":""}>
                 {opt.label}
               </span>
               {isSelected(opt.value) && (

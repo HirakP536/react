@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setRecording } from "../../../store/slices/callFeatureSlice";
 import * as SIP from "sip.js";
 
-const RecordButton = ({ sessionRef }) => {
+const RecordButton = ({ sessionRef,isPhoneModule=false }) => {
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
   const isRecording = useSelector((state) => state.callFeature.isRecording);
@@ -78,7 +78,6 @@ const RecordButton = ({ sessionRef }) => {
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state !== "inactive") {
       recorder.stop();
-      console.log("🛑 Recording stopped");
     }
   };
 
@@ -97,7 +96,9 @@ const RecordButton = ({ sessionRef }) => {
   return (
     <button
       type="button"
-      className="relative flex items-center justify-center w-16 h-16 bg-[#aa93c752] rounded-full group"
+      className={`relative flex items-center justify-center ${
+        isPhoneModule ? "sm:w-15 sm:h-15 w-12 h-12" : "w-12 h-12"
+      } bg-[#aa93c752] rounded-full group`}
       onClick={handleRecord}
       disabled={!canMute}
       style={{ opacity: canMute ? 1 : 0.5 }}
@@ -105,7 +106,9 @@ const RecordButton = ({ sessionRef }) => {
       <img
         src={isRecording ? recordicon : unrecordIcon}
         alt=""
-        className="max-w-7 h-auto transition-transform duration-200 ease-linear group-hover:scale-[1.2]"
+        className={`${
+          isPhoneModule ? "sm:max-w-7 max-w-5" : "max-w-5"
+        } h-auto transition-transform duration-200 ease-linear group-hover:scale-[1.2]`}
       />
       <span className="absolute left-[-10] top-[-15px] -translate-y-1/2 ml-2 z-50 bg-[#67308F] !text-[#fff] text-xs rounded px-3 py-1 shadow-lg whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         {isRecording ? "Stop" : "Record"}

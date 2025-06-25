@@ -26,19 +26,19 @@ const MessageSkeleton = ({ rows = 4 }) => (
   </div>
 );
 
-const TableSkeleton = ({ rows = 4, columns = 3, th = [] }) => (
+const TableSkeleton = ({ rows, columns, thdata = [] }) => (
   <div className="w-full">
     <table className="w-full border-collapse border border-gray-200 text-left text-sm">
       <thead className="sticky top-0 bg-secondary text-white z-10">
         <tr>
-          {th.length > 0
-            ? th.map((header, i) => (
+          {thdata?.length > 0
+            ? thdata.map((header, i) => (
                 <th
                   key={i}
                   className={`border-b-[1px] border-gray-200 px-4 py-2${
                     i === 1
                       ? " text-center"
-                      : i === 2 || i === 3
+                      : i === 2 || i === 3 || i === 4 || i === 5
                       ? " text-right"
                       : ""
                   }`}
@@ -46,17 +46,16 @@ const TableSkeleton = ({ rows = 4, columns = 3, th = [] }) => (
                   {header}
                 </th>
               ))
-            : [
-                <th className="border-b-[1px] border-gray-200 px-4 py-2">
-                  Number
-                </th>,
-                <th className="border-b-[1px] border-gray-200 px-4 py-2 text-center">
-                  Status
-                </th>,
-                <th className="border-b-[1px] border-gray-200 px-4 py-2 text-right">
-                  Date & Time
-                </th>,
-              ]}
+            : ["Number", "Status", "Date & Time"].map((text, i) => (
+                <th
+                  key={i}
+                  className={`border-b-[1px] border-gray-200 px-4 py-2${
+                    i === 1 ? " text-center" : i === 2 ? " text-right" : ""
+                  }`}
+                >
+                  {text}
+                </th>
+              ))}
         </tr>
       </thead>
       <tbody>
@@ -91,7 +90,7 @@ const TableSkeleton = ({ rows = 4, columns = 3, th = [] }) => (
   </div>
 );
 
-const Skeleton = ({ rows = 4, columns = 3, th = [], type = "table" }) => {
+const Skeleton = ({ rows, columns, th, type = "table" }) => {
   if (type === "contact") {
     return <ContactSkeleton rows={rows} />;
   }

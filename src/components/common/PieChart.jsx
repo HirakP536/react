@@ -51,7 +51,7 @@ const statusColors = {
   return (
     <div className="flex flex-col items-center justify-center w-full p-4">
       <h5>{title}</h5>{" "}
-      <div className="max-w-[600px] max-h-[600px] mx-auto">
+      <div className="sm:max-w-[600px] max-w-[250px] sm:max-h-[600px] max-h-[250px]  mx-auto">
         <Doughnut data={chartConfig} options={chartConfig.options} />
       </div>
     </div>

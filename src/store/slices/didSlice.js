@@ -7,12 +7,17 @@ export const fetchDidList = createAsyncThunk(
     try {
       const response = await getDidList(key,companyTenant);
       const data = await response?.data;
-      return data;
+      const filteredData = data.filter(item => {
+        // Filter out FAX DIDs
+        const didLabel = item["5"] ? item["5"].toString().toLowerCase() : '';
+        return !didLabel.includes("fax");
+      });
+      return filteredData;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
-);
+);  
 
 const didSlice = createSlice({
   name: "did",
@@ -35,6 +40,7 @@ const didSlice = createSlice({
       .addCase(fetchDidList.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || action.error.message;
+        state.data = [];
       });
   },
 });

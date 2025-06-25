@@ -17,6 +17,6 @@ export const resendApiHandler = async (uniqueId) => {
       );
       return res;
     } catch (err) {
-      console.log("err", err);
+      console.log( err);
     }
   };

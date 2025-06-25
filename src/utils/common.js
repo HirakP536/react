@@ -1,3 +1,5 @@
+import { DateTime } from "luxon";
+
 /* eslint-disable no-useless-escape */
 const toCST = (date) => {
   const options = { timeZone: "America/Chicago", hour12: false };
@@ -56,43 +58,76 @@ export const parseVoiceData = (data) => {
 };
 
 export const formatUSPhone = (value) => {
-  // Check if value is undefined or null
   if (!value) return "";
-  // Remove all non-digit characters
-  let digits = value.replace(/[^0-9]/g, "");
-  // Remove leading country code if present (e.g., +1)
-  if (digits.length > 10 && digits.startsWith("1")) {
-    digits = digits.slice(1);
+  let digits = value?.replace(/[^0-9]/g, "");
+  if (digits?.length > 10 && digits.startsWith("1")) {
+    digits = digits?.slice(1);
   }
   digits = digits.slice(0, 10);
-  // Format as (123) 456-7890
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits?.length <= 3) return digits;
+  if (digits?.length <= 6)
+    return `(${digits?.slice(0, 3)}) ${digits?.slice(3)}`;
+  return `(${digits?.slice(0, 3)}) ${digits?.slice(3, 6)}-${digits?.slice(6)}`;
 };
 
+export const formatUSAPhoneNumber = (value) => {
+  if (!value) return "";
+  if (value.includes("*") || value.includes("#")) {
+    return value.replace(/\s+/g, "");
+  }
+  let digits = value.replace(/[^0-9]/g, "");
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return value.replace(/\s+/g, "");
+};
 
 export const formatDuration = (seconds) => {
-  // Add null check
   if (seconds === undefined || seconds === null || isNaN(seconds)) {
-    return '00:00';
+    return "00:00";
   }
-  const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
-  const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-  const s = (seconds % 60).toString().padStart(2, '0');
+  const h = Math.floor(seconds / 3600)
+    .toString()
+    .padStart(2, "0");
+  const m = Math.floor((seconds % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
   return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
 };
 
-export const convertToLocalTime = (dateStr) => {
-  const date = new Date(dateStr);
-  return date.toLocaleString();
-};
+export function convertCSTToLocalTime(cstDateStr) {
+  const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const cstDateTime = DateTime.fromFormat(cstDateStr, "yyyy-MM-dd HH:mm:ss", {
+    zone: "America/Chicago",
+  });
+  const localDateTime = cstDateTime.setZone(localZone);
+  const today = DateTime.now().setZone(localZone).startOf("day");
+  const yesterday = today.minus({ days: 1 });
+  const timeFormatted = localDateTime.toFormat("hh:mm a");
 
-
+  if (localDateTime.hasSame(today, "day")) {
+    return `Today at ${timeFormatted}`;
+  } else if (localDateTime.hasSame(yesterday, "day")) {
+    return `Yesterday at ${timeFormatted}`;
+  } else {
+    return `${localDateTime.toFormat("yyyy-MM-dd")}  ${timeFormatted}`;
+  }
+}
+export function convertCSTToLocalTimeReport(cstDateStr) {
+  const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const cstDateTime = DateTime.fromFormat(cstDateStr, "yyyy-MM-dd HH:mm:ss", {
+    zone: "America/Chicago",
+  });
+  const localDateTime = cstDateTime.setZone(localZone);
+  return `${localDateTime.toFormat("yyyy-MM-dd")}  ${localDateTime.toFormat(
+    "hh:mm a"
+  )}`;
+}
 
 export function formatTimeDuration(seconds) {
-  if (typeof seconds !== 'number' || isNaN(seconds) || seconds < 0) {
-    return '0 sec';
+  if (typeof seconds !== "number" || isNaN(seconds) || seconds < 0) {
+    return "0 sec";
   }
 
   if (seconds < 60) {
@@ -109,3 +144,19 @@ export function formatTimeDuration(seconds) {
 
   return `${mins} min ${secs} sec`;
 }
+
+export const normalizePhoneNumber = (phoneStr) => {
+  if (!phoneStr) return "";
+  phoneStr = String(phoneStr);
+  if (phoneStr.includes("-") && !phoneStr.match(/\d{3}-\d{3}-\d{4}/)) {
+    phoneStr = phoneStr.split("-")[0].trim();
+  }
+  // Only allow digits, * and #
+  let filtered = phoneStr.replace(/[^0-9*#]/g, "");
+  // If contains * or #, allow up to 16 chars, else only 10 digits
+  if (filtered.includes("*") || filtered.includes("#")) {
+    return filtered.slice(0, 16);
+  }
+  // Only digits: trim to 10 digits
+  return filtered.slice(0, 13);
+};

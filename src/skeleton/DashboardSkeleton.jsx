@@ -25,7 +25,7 @@ const DashboardSkeleton = ({ userRole }) => {
         className="relative flex items-center justify-between bg-white rounded-2xl py-4 px-6 mb-4"
         style={{ boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.1)" }}
       >
-        <div className="flex items-center gap-5">
+        <div className="sm:flex sm:flex-row flex-wrap block items-center gap-5">
           {[...Array(4)].map((_, index) => (
             <div key={index} className="flex items-center gap-2 animate-pulse">
               <div className="h-6 w-24 bg-gray-200 rounded"></div>

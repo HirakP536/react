@@ -2,22 +2,22 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Registerer, UserAgent } from "sip.js";
-import {
-    clearSIP,
-    setRegistered
-} from "../store/slices/sipSlice";
+import { clearSIP, setRegistered } from "../store/slices/sipSlice";
 import useSipAgentRef from "./useSipAgentRef";
 import useSipSession from "./useSipSession";
+import { addSession } from "../store/slices/callFeatureSlice";
+import { SipSessionRegistry } from "../helpers/sipSessionRegistry";
 
 const useSip = () => {
-  const userName = useSelector((state) => state.auth?.user?.data?.city);
+  const userName = useSelector((state) => state.auth?.companyExtension);
   const password = useSelector((state) => state.auth?.user?.data?.state);
   const sipDomain = useSelector((state) => state.auth?.user?.data?.timeZone);
   const dispatch = useDispatch();
-  const { userAgentRef } = useSipAgentRef(); 
+  const { userAgentRef } = useSipAgentRef();
   const registererRef = useRef(null);
   const keepAliveInterval = useRef(null);
-  const {handleIncomingSession} = useSipSession();
+  const { handleIncomingSession } = useSipSession();
+  const isDNDActive = useSelector((state) => state.callFeature.isDNDActive);
 
   useEffect(() => {
     const userAgent = new UserAgent({
@@ -27,14 +27,36 @@ const useSip = () => {
       },
       authorizationUsername: userName,
       authorizationPassword: password,
+       logLevel: "error",
     });
 
     userAgentRef.current = userAgent;
-
     userAgent.delegate = {
-      onInvite: (incomingSession) => {
-        handleIncomingSession(incomingSession);
-        console.warn("incomingSession=================>",incomingSession)
+      onInvite: async (incomingSession) => {
+        if (isDNDActive) {
+          try {
+            await incomingSession?.reject({
+              statusCode: 486,
+              reasonPhrase: "Busy Here",
+            });
+          } catch (error) {
+            console.error("Failed to reject call during DND:", error);
+          }
+          return;
+        }
+        SipSessionRegistry.set(incomingSession.id, incomingSession);
+        await handleIncomingSession(incomingSession);
+        dispatch(
+          addSession({
+            id: incomingSession.id,
+            data: {
+              direction: "incoming",
+              phone: incomingSession.remoteIdentity.uri.user,
+              session: incomingSession,
+              startedAt: new Date().toISOString(),
+            },
+          })
+        );
       },
     };
 
@@ -64,6 +86,8 @@ const useSip = () => {
       dispatch(setRegistered(false));
     };
   }, [userName, password, sipDomain]);
+
+  return useSipAgentRef;
 };
 
 export default useSip;
