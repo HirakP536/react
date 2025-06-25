@@ -22,4 +22,8 @@ jobs:
           cd "E:\test\react\react"
           npm run build
           Add-Content -Path $LogFile -Value "===== Build process completed - $(Get-Date) ====="
+
+          Add-Content -Path $LogFile -Value "===== Stopping Server - $(Get-Date) ====="
+          & "C:\Windows\System32\inetsrv\appcmd.exe" stop site "voice" 2>&1 | Tee-Object -FilePath $LogFile -Append
+         
         shell: powershell
