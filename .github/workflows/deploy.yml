@@ -7,29 +7,49 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
+
     steps:
       - name: Pull latest code
         run: |
           $LogPath = "C:/logs/react"
-          if (!(Test-Path $LogPath)) { New-Item -ItemType Directory -Path $LogPath }
+          if (!(Test-Path $LogPath)) { New-Item -ItemType Directory -Path $LogPath -Force }
           $LogFile = "$LogPath/deploy.log"
           Add-Content -Path $LogFile -Value "`n===== Pulling latest code - $(Get-Date) ====="
-          git -C "E:\test\react\react" pull origin main 2>&1 | Tee-Object -FilePath $LogFile -Append
+
+          try {
+            git -C "E:\test\react\react" pull origin main 2>&1 | Tee-Object -FilePath $LogFile -Append
+          } catch {
+            Add-Content -Path $LogFile -Value "`nGit pull failed: $($_.Exception.Message)"
+            exit 1
+          }
         shell: powershell
 
       - name: Build or migrate
         run: |
           $LogFile = "C:/logs/react/deploy.log"
           Add-Content -Path $LogFile -Value "`n===== Running npm build - $(Get-Date) ====="
-          Set-Location -Path "E:\test\react\react"
-          npm install 2>&1 | Tee-Object -FilePath $LogFile -Append
-          npm run build 2>&1 | Tee-Object -FilePath $LogFile -Append
+
+          try {
+            Set-Location -Path "E:\test\react\react"
+            npm install 2>&1 | Tee-Object -FilePath $LogFile -Append
+            npm run build 2>&1 | Tee-Object -FilePath $LogFile -Append
+          } catch {
+            Add-Content -Path $LogFile -Value "`nBuild failed: $($_.Exception.Message)"
+            exit 1
+          }
         shell: powershell
 
       - name: Restart IIS site
         run: |
           $LogFile = "C:/logs/react/deploy.log"
           Add-Content -Path $LogFile -Value "`n===== Restarting IIS site - $(Get-Date) ====="
-          & "C:\Windows\System32\inetsrv\appcmd.exe" stop site "voice" 2>&1 | Tee-Object -FilePath $LogFile -Append
-   
+
+          try {
+            & "C:\Windows\System32\inetsrv\appcmd.exe" stop site "voice" 2>&1 | Tee-Object -FilePath $LogFile -Append
+            Start-Sleep -Seconds 2
+            & "C:\Windows\System32\inetsrv\appcmd.exe" start site "voice" 2>&1 | Tee-Object -FilePath $LogFile -Append
+          } catch {
+            Add-Content -Path $LogFile -Value "`nIIS restart failed: $($_.Exception.Message)"
+            exit 1
+          }
         shell: powershell
