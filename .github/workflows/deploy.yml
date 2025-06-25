@@ -10,27 +10,26 @@ jobs:
     steps:
       - name: Pull latest code
         run: |
-          $LogPath = "C:/logs/repo-name"
+          $LogPath = "C:/logs/react"
           if (!(Test-Path $LogPath)) { New-Item -ItemType Directory -Path $LogPath }
           $LogFile = "$LogPath/deploy.log"
           Add-Content -Path $LogFile -Value "`n===== Pulling latest code - $(Get-Date) ====="
-          git -C "E:\siteB" pull origin main 2>&1 | Tee-Object -FilePath $LogFile -Append
+          git -C "E:\test\react\react" pull origin main 2>&1 | Tee-Object -FilePath $LogFile -Append
         shell: powershell
 
       - name: Build or migrate
         run: |
-          $LogFile = "C:/logs/repo-name/deploy.log"
+          $LogFile = "C:/logs/react/deploy.log"
           Add-Content -Path $LogFile -Value "`n===== Running npm build - $(Get-Date) ====="
-          Set-Location -Path "E:\siteB"
+          Set-Location -Path "E:\test\react\react"
           npm install 2>&1 | Tee-Object -FilePath $LogFile -Append
           npm run build 2>&1 | Tee-Object -FilePath $LogFile -Append
         shell: powershell
 
       - name: Restart IIS site
         run: |
-          $LogFile = "C:/logs/repo-name/deploy.log"
+          $LogFile = "C:/logs/react/deploy.log"
           Add-Content -Path $LogFile -Value "`n===== Restarting IIS site - $(Get-Date) ====="
-          & "C:\Windows\System32\inetsrv\appcmd.exe" stop site "site-b" 2>&1 | Tee-Object -FilePath $LogFile -Append
-          Start-Sleep -Seconds 2
-          & "C:\Windows\System32\inetsrv\appcmd.exe" start site "site-b" 2>&1 | Tee-Object -FilePath $LogFile -Append
+          & "C:\Windows\System32\inetsrv\appcmd.exe" stop site "voice" 2>&1 | Tee-Object -FilePath $LogFile -Append
+   
         shell: powershell
