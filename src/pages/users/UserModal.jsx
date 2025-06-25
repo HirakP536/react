@@ -19,7 +19,7 @@ import { getUserSchema } from "../../schemas/userSchema";
 import { fetchDidList } from "../../store/slices/didSlice";
 import { fetchExtension } from "../../store/slices/extensionSlice";
 
-const allUserTypeOptions = [
+const userTypeOptions = [
   { value: "superadmin", label: "Super Admin" },
   { value: "admin", label: "Admin" },
   { value: "user", label: "User" },
@@ -36,20 +36,10 @@ const UserModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [extensionData, setExtensionData] = useState([]);
   const [didData, setDidData] = useState([]);
+  const [showAllDIDs, setShowAllDIDs] = useState(false);
   const [activeTab, setActiveTab] = useState("edit");
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
-  const userType = useSelector((state) => state?.auth?.user?.data?.userType);
-
-  console.log(userData)
-
-  const userTypeOptions =
-    userType === "superadmin"
-      ? allUserTypeOptions
-      : [
-          { value: "admin", label: "Admin" },
-          { value: "user", label: "User" },
-        ];
 
   const dispatch = useDispatch();
   const apiKey = import.meta.env.VITE_API_KEY;
@@ -265,23 +255,20 @@ const UserModal = ({
           response = await addUser(submitValues);
           successToast("Contact added successfully");
         }
+
         formik.resetForm();
         setIsOpen(false);
         userDataHandler();
         if (onClose) onClose();
         return response;
       } catch (error) {
-        errorToast(
-          error?.response?.data?.error?.email?.[0] ||
-            error?.response?.data?.error ||
-            "Something went wrong"
-        );
+        console.error("Error", error);
+        errorToast(error?.response?.data?.error);
       } finally {
         setIsLoading(false);
       }
     },
   });
-
   const isFormValid = () => {
     // For edit mode
     if (editContact) {
@@ -310,98 +297,89 @@ const UserModal = ({
   useEffect(() => {
     if (!isOpen) {
       formik.resetForm({ values: initialValues });
-      setActiveTab("edit");
-      setNewPassword("");
 
       if (editContact && onClose) {
         onClose();
       }
     }
   }, [isOpen]);
-
   const handleModalClose = () => {
     setIsOpen(false);
-    setActiveTab("edit");
-    formik.resetForm();
   };
+  const availableDIDs = Array.isArray(didData)
+    ? didData.map((item) => ({
+        label: `${item["5"]} - ${item["3"]}${item["4"]}`,
+        value: {
+          label: item["5"],
+          phone: `${item["3"]}${item["4"]}`,
+        },
+      }))
+    : [];
 
-  // Define isDIDSelected function first before using it in sort
+  const didItemsToShow = showAllDIDs
+    ? availableDIDs
+    : availableDIDs.slice(0, 10);
+  const hasMoreDIDs = availableDIDs.length > 10;
   const isDIDSelected = (did) => {
     if (!formik.values.dids?.length) return false;
 
-    // Normalize the phone number from the DID option for comparison
-    const normalizePhone = (phone) => {
-      if (!phone) return "";
-      const digits = phone.replace(/\D/g, "");
-      return digits.startsWith("1") ? digits.slice(1) : digits;
-    };
-
-    const didPhone = normalizePhone(did.value.phone);
-
-    // Check if this DID is already in the selected list
     return formik.values.dids.some((selectedDid) => {
+      const normalizePhone = (phone) => {
+        if (!phone) return "";
+        const digits = phone.replace(/\D/g, "");
+        return digits.startsWith("1") ? digits.slice(1) : digits;
+      };
+
       const selectedPhone = normalizePhone(selectedDid.phone);
-      return selectedPhone === didPhone;
+      const didPhone = normalizePhone(did.value.phone);
+      const phoneMatch = selectedPhone === didPhone;
+      const selectedLabel = selectedDid.label?.split(" - ")?.[0]?.trim() || "";
+      const didLabel = did.value.label?.trim() || "";
+
+      return phoneMatch && selectedLabel === didLabel;
     });
   };
-
-  // Now use isDIDSelected in the availableDIDs variable
-  const availableDIDs = Array.isArray(didData)
-    ? didData
-        .map((item) => ({
-          label: item["5"]
-            ? `${item["5"]} - ${item["3"]}${item["4"]}`
-            : `${item["3"]}${item["4"]}`,
-          value: {
-            label: item["5"] || "",
-            phone: `${item["3"]}${item["4"]}`,
-          },
-        }))
-        // Sort function to move selected DIDs to the top
-        .sort((a, b) => {
-          const aIsSelected = isDIDSelected(a);
-          const bIsSelected = isDIDSelected(b);
-
-          if (aIsSelected && !bIsSelected) return -1;
-          if (!aIsSelected && bIsSelected) return 1;
-          return a.label.localeCompare(b.label);
-        })
-    : [];
 
   const handleDIDSelection = (did) => {
     const currentDids = [...(formik.values.dids || [])];
     const isSelected = isDIDSelected(did);
 
-    const normalizePhone = (phone) => {
-      if (!phone) return "";
-      const digits = phone.replace(/\D/g, "");
-      return digits.startsWith("1") ? digits.slice(1) : digits;
-    };
-
-    const didPhone = normalizePhone(did.value.phone);
-
     if (isSelected) {
+      // Remove the DID
+      const normalizePhone = (phone) => {
+        if (!phone) return "";
+        const digits = phone.replace(/\D/g, "");
+        return digits.startsWith("1") ? digits.slice(1) : digits;
+      };
+
       const updatedDids = currentDids.filter((d) => {
-        const selectedPhone = normalizePhone(d.phone);
-        return selectedPhone !== didPhone;
+        const dPhone = normalizePhone(d.phone);
+        const didPhone = normalizePhone(did.value.phone);
+        // Extract base label without phone number
+        const dLabel = d.label?.split(" - ")?.[0]?.trim() || "";
+        const didLabel = did.value.label?.trim() || "";
+        return !(dPhone === didPhone && dLabel === didLabel);
       });
 
       formik.setFieldValue("dids", updatedDids);
     } else {
+      // Add the new DID with formatted label including phone
       const newDid = {
-        label: did.value.label
-          ? `${did.value.label} - ${did.value.phone}`
-          : did.value.phone,
+        label: `${did.value.label} - ${did.value.phone}`,
         phone: did.value.phone,
-        is_primary: currentDids.length === 0,
+        is_primary: false,
       };
-
       formik.setFieldValue("dids", [...currentDids, newDid]);
     }
   };
 
+  // Show all DIDs in edit mode
+  useEffect(() => {
+    if (editContact && userData) {
+      setShowAllDIDs(true);
+    }
+  }, [editContact, userData]);
   const handlePasswordChange = async () => {
-    console.log("firstName", formik.values.email);
     if (!newPassword) {
       errorToast("Please enter a new password");
       return;
@@ -411,7 +389,7 @@ const UserModal = ({
       errorToast("Password must be between 6 and 20 characters");
       return;
     }
-console.log( userData?.email)
+
     try {
       setPasswordChangeLoading(true);
 
@@ -435,7 +413,7 @@ console.log( userData?.email)
 
   return (
     <div
-      className={`fixed top-0 right-0 w-full max-w-[500px] h-full bg-white z-[999] rounded-l-2xl overflow-auto overflowScroll ${
+      className={`fixed top-0 right-0 w-full max-w-[500px] h-full bg-white z-[999] rounded-l-2xl ${
         isOpen ? "translate-x-[0%]" : "translate-x-[100%]"
       } transition-transform duration-300 ease-in-out`}
       style={{
@@ -491,7 +469,7 @@ console.log( userData?.email)
                 error={null}
               />{" "}
             </div>{" "}
-            <button
+            <LoginButton
               onClick={handlePasswordChange}
               disabled={
                 !newPassword ||
@@ -504,14 +482,14 @@ console.log( userData?.email)
                 newPassword.length <= 20
               }
               isLoading={passwordChangeLoading}
-              className={`w-full py-2 !text-white font-medium rounded-lg transition-all ${
+              className={`w-full py-2 text-white font-medium rounded-lg transition-all ${
                 !newPassword ||
                 newPassword.length < 6 ||
                 newPassword.length > 20
                   ? "bg-secondary opacity-50 cursor-not-allowed"
                   : "bg-secondary hover:bg-secondary-dark opacity-100 cursor-pointer"
               }`}
-            >Change Password</button>
+            />
           </div>
         ) : (
           <form onSubmit={formik.handleSubmit}>
@@ -593,48 +571,42 @@ console.log( userData?.email)
 
             {/* SIP Domain and Extension */}
             <div className="flex gap-4 mb-2 w-full">
-              {userType === "superadmin" && (
-                <div className="mb-0 w-1/2">
-                  <label
-                    className="block w-full sm:text-sm text-xs !font-semibold mb-1.5"
-                    htmlFor="timeZone"
-                  >
-                    SIP Domain
-                  </label>
-                  <CustomDropdown
-                    name="timeZone"
-                    label=""
-                    options={[
+              <div className="mb-0 w-1/2">
+                <label
+                  className="block w-full sm:text-sm text-xs !font-semibold mb-1.5"
+                  htmlFor="timeZone"
+                >
+                  SIP Domain
+                </label>
+                <CustomDropdown
+                  name="timeZone"
+                  label=""
+                  options={[
+                    { value: "sip2.houstonsupport.com", label: "SIP2" },
+                    { value: "sip5.houstonsupport.com", label: "SIP5" },
+                  ]}
+                  value={
+                    [
                       { value: "sip2.houstonsupport.com", label: "SIP2" },
                       { value: "sip5.houstonsupport.com", label: "SIP5" },
-                    ]}
-                    value={
-                      [
-                        { value: "sip2.houstonsupport.com", label: "SIP2" },
-                        { value: "sip5.houstonsupport.com", label: "SIP5" },
-                      ].find((opt) => opt.value === formik.values.timeZone) ||
-                      null
-                    }
-                    onChange={(e) => {
-                      formik.setFieldValue("timeZone", e.target.value);
-                    }}
-                    onBlur={formik.handleBlur}
-                    error={formik.errors.timeZone}
-                    touched={formik.touched.timeZone}
-                  />
+                    ].find((opt) => opt.value === formik.values.timeZone) ||
+                    null
+                  }
+                  onChange={(e) => {
+                    formik.setFieldValue("timeZone", e.target.value);
+                  }}
+                  onBlur={formik.handleBlur}
+                  error={formik.errors.timeZone}
+                  touched={formik.touched.timeZone}
+                />
 
-                  {formik.errors.timeZone && formik.touched.timeZone && (
-                    <div className="text-xs text-red-500">
-                      {formik.errors.timeZone}
-                    </div>
-                  )}
-                </div>
-              )}
-              <div
-                className={`mb-0 ${
-                  userType === "superadmin" ? "w-1/2" : "w-full"
-                }`}
-              >
+                {formik.errors.timeZone && formik.touched.timeZone && (
+                  <div className="text-xs text-red-500">
+                    {formik.errors.timeZone}
+                  </div>
+                )}
+              </div>
+              <div className="mb-0 w-1/2">
                 <label
                   className="block w-full sm:text-sm text-xs !font-semibold mb-1.5"
                   htmlFor="extensions"
@@ -704,14 +676,16 @@ console.log( userData?.email)
                     </span>
                   )}
                 </label>
-                <div className="border border-gray-200 rounded-lg p-2 max-h-[200px] overflow-y-auto overflowScroll">
-                  {availableDIDs.length > 0 ? (
+                <div className="border border-gray-200 rounded-lg p-2 max-h-[200px] overflow-y-auto">
+                  {didItemsToShow.length > 0 ? (
                     <div>
-                      {availableDIDs.map((did, index) => {
+                      {didItemsToShow.map((did, index) => {
                         const isSelected = isDIDSelected(did);
+                        console.log(did);
+
                         return (
                           <div
-                            key={`${did.value.phone}-${index}`}
+                            key={index}
                             className={`flex items-center py-2 px-1 border-b border-gray-100 hover:bg-gray-50 ${
                               isSelected ? "bg-purple-50" : ""
                             }`}
@@ -719,13 +693,13 @@ console.log( userData?.email)
                           >
                             <input
                               type="checkbox"
-                              id={`did-${did.value.phone}-${index}`}
+                              id={`did-${index}`}
                               checked={isSelected}
                               readOnly
                               className="mr-2 h-4 w-4 accent-[#67308F] text-[#67308F] border-[#67308F] focus:ring-[#67308F]"
                             />
                             <label
-                              htmlFor={`did-${did.value.phone}-${index}`}
+                              htmlFor={`did-${index}`}
                               className={`text-sm cursor-pointer flex-grow ${
                                 isSelected ? "font-medium text-[#67308F]" : ""
                               }`}
@@ -735,6 +709,32 @@ console.log( userData?.email)
                           </div>
                         );
                       })}
+
+                      {/* Show More/Less button */}
+                      {hasMoreDIDs && (
+                        <div className="text-center mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowAllDIDs(!showAllDIDs)}
+                            className="text-secondary text-xs hover:text-primary font-medium"
+                          >
+                            {showAllDIDs ? (
+                              <span className="bg-secondary p-1 !text-white rounded-sm">
+                                Show Less
+                              </span>
+                            ) : (
+                              <>
+                                <span className="bg-secondary p-1 !text-white rounded-sm">
+                                  Show More
+                                </span>{" "}
+                                <span className="!text-primary">
+                                  ({availableDIDs.length - 10} more)
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-center text-gray-500 py-2">

@@ -1,50 +1,48 @@
-import { DateTime } from "luxon";
+import { DateTime } from 'luxon';
 
 export const formatDateForAPI = (date, isStartDate = true, isToday = false) => {
-  const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const dtLocal = DateTime.fromJSDate(date, { zone: localZone });
+  const dt = DateTime.fromJSDate(date).setZone('America/Chicago');
 
-  const dtAdjusted =
-    isToday && !isStartDate
-      ? DateTime.local().setZone(localZone)
-      : dtLocal.set({
-          hour: isStartDate ? 0 : 23,
-          minute: isStartDate ? 0 : 59,
-          second: 0,
-          millisecond: 0,
-        });
+  if (isToday && !isStartDate) {
+    // Use the actual current time in CST/CDT
+    return dt.toFormat('yyyy-MM-dd HH:mm');
+  }
 
-  const dtCST = dtAdjusted.setZone("America/Chicago");
-  return dtCST.toFormat("yyyy-MM-dd HH:mm");
+  // Use 00:00 for start, 23:59 for end
+  const time = isStartDate ? { hour: 0, minute: 0 } : { hour: 23, minute: 59 };
+  const adjusted = dt.set(time);
+  return adjusted.toFormat('yyyy-MM-dd HH:mm');
 };
-
 export const getDateRangeForFilter = (filterType) => {
-  const now = new Date(); 
-  const startDate = new Date(now);
-  const endDate = new Date(now);
+  const now = new Date();
+  const startDate = new Date();
+  let endDate = new Date();
 
   switch (filterType) {
-    case "today":
+    case 'today':
       startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
       break;
 
-    case "yesterday":
+    case 'yesterday':
       startDate.setDate(now.getDate() - 1);
       startDate.setHours(0, 0, 0, 0);
       endDate.setDate(now.getDate() - 1);
       endDate.setHours(23, 59, 59, 999);
       break;
 
-    case "week": {
-      const dayOfWeek = now.getDay();
+    case 'week': {
+      const dayOfWeek = now.getDay(); // Sunday = 0
       startDate.setDate(now.getDate() - dayOfWeek);
       startDate.setHours(0, 0, 0, 0);
+      // endDate stays as now
       break;
     }
 
-    case "month":
+    case 'month':
       startDate.setDate(1);
       startDate.setHours(0, 0, 0, 0);
+      // endDate stays as now
       break;
 
     default:
@@ -52,7 +50,7 @@ export const getDateRangeForFilter = (filterType) => {
       endDate.setHours(23, 59, 59, 999);
   }
 
-  const isToday = filterType === "today";
+  const isToday = filterType === 'today';
 
   return {
     startDate: formatDateForAPI(startDate, true, isToday),

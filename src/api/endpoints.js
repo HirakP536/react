@@ -40,8 +40,7 @@ const endpoints = {
     addContact: `/user/addContact`,
     updateContact: `/user/updateContact`,
     deleteContact: `/user/deleteContact`,
-    getSupportContact: `/user/help-support/`,
-  },  
+  },
 };
 
 export default endpoints;

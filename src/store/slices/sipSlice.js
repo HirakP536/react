@@ -9,12 +9,11 @@ const initialState = {
   isRegistered: false,
   callDuration: 0,
   callStatus: null,
-  callType: "unknown", // 'incoming', 'outgoing', 'missed', 'voicemail'
+  callType: null,
   callDirection: null,
   callStartTime: null,
   callEndTime: null,
   activeLineId: null,
-  currentReference: null,
   lines: {},
 };
 
@@ -22,14 +21,21 @@ const sipSlice = createSlice({
   name: "sip",
   initialState,  reducers: {
     setIncomingCall: (state, action) => {
+      console.log("setIncomingCall reducer payload:", action.payload);
+
+      // Be defensive and provide defaults
       const caller = action.payload?.caller || "";
       const displayName = action.payload?.displayName || "";
       const lineId = action.payload?.lineId || null;
+
+      // Ensure we're setting the state correctly
       state.incomingCall = {
         caller,
         displayName,
         lineId,
       };
+
+      console.log("Updated incomingCall state:", state.incomingCall);
     },
     clearIncomingCall: (state) => {
       state.incomingCall = { caller: "", displayName: "", lineId: null };
@@ -44,14 +50,9 @@ const sipSlice = createSlice({
         state.callDuration += 1;
       }
     },
-    setCallType: (state, action) => {
-      state.callType = action.payload;
-    },
-    setCurrentReference: (state, action) => {
-      state.currentReference = action.payload;
-    },
     setActiveLine: (state, action) => {
       state.activeLineId = action.payload;
+      console.log(`Active line set to: ${action.payload}`);
     },
     updateLineState: (state, action) => {
       const { lineId, data } = action.payload;
@@ -62,6 +63,7 @@ const sipSlice = createSlice({
         ...state.lines[lineId],
         ...data
       };
+      console.log(`Line ${lineId} updated:`, data);
     },
     removeLine: (state, action) => {
       const lineId = action.payload;
@@ -87,9 +89,7 @@ export const {
   setCallDuration,
   setActiveLine,
   updateLineState,
-  setCurrentReference,
   removeLine,
-  setCallType
 } = sipSlice.actions;
 
 export default sipSlice.reducer;

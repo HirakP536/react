@@ -140,8 +140,6 @@ export const CommonDropdown = ({
 }) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef();
-  let singleValue='';
-  if (!multiple) singleValue = options.find((opt) => opt.value === value) || {};
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -199,7 +197,7 @@ export const CommonDropdown = ({
       if (!Array?.isArray(value) || value?.length === 0) return "Select " + name;
       return value.map((v) => v?.label).join(", ");
     } else {
-      return value?.label || singleValue.label|| "Select " + name;
+      return value?.label || "Select " + name;
     }
   };
 
@@ -223,7 +221,7 @@ export const CommonDropdown = ({
       </div>
 
       {open && (
-        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md max-h-60 overflow-auto shadow overflowScroll">
+        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md max-h-60 overflow-auto shadow">
           {options.map((opt) => (
             <div
               key={`${opt.value.phone || opt.value}-${opt.label}`}
@@ -234,7 +232,7 @@ export const CommonDropdown = ({
                   : "hover:bg-blue-100"
               }`}
             >
-              <span className={isSelected(opt.value) ?"!text-white":""}>
+              <span className={isSelected(opt.value) && "!text-white"}>
                 {opt.label}
               </span>
               {isSelected(opt.value) && (

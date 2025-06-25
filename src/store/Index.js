@@ -12,15 +12,11 @@ import callFeatureReducer from "./slices/callFeatureSlice";
 import userReducer from "./slices/userSlice";
 import voiceMailReducer from "./slices/voicemailSlice";
 import chatListReducer from "./slices/chatListSlice";
-import contactReducer from "./slices/contactSlice";
-import contactsManagementReducer from "./slices/contactsManagementSlice";
-import historyReducer from "./slices/historySlice";
-import ipAddressReducer from "./slices/ipAddressSlice";
 
 const persistConfig = {
   key: 'root',
   storage,
-  blacklist: ['sip','callDetails','callData'],
+  blacklist: ['sip','callDetails'],
 };
 
 const rootReducer = combineReducers({
@@ -31,11 +27,8 @@ const rootReducer = combineReducers({
   callFeature: callFeatureReducer,
   users: userReducer,
   voiceMail: voiceMailReducer,
-  chatList: chatListReducer,
-  contacts: contactReducer,
-  contactsManagement: contactsManagementReducer,
-  history: historyReducer,
-  ipAddress: ipAddressReducer,
+  chatList: chatListReducer
+  // callDetails: callDetails,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -44,7 +37,7 @@ export const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: false,
+      serializableCheck: false, // Disable serializable check to avoid slowdown warning
       immutableCheck: false,
     }),
 });

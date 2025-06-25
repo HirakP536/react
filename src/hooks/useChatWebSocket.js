@@ -25,7 +25,6 @@ const useChatWebSocket = (uuid, onMessageHandler, setNewSocketData) => {
       socket.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log("📬 WebSocket message received:", data);
           onMessageHandler?.(data);
           setNewSocketData?.(data);
         } catch (err) {

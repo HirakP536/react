@@ -7,10 +7,6 @@ import userReducer from "./slices/userSlice";
 import callDetailsReducer from "./slices/callDetailsSlice";
 import voiceMailReducer from "./slices/voicemailSlice";
 import chatListReducer from "./slices/chatListSlice";
-import callDataReducer from "./slices/callDataSlice";
-import contactReducer from "./slices/contactSlice";
-import historyReducer from "./slices/historySlice";
-import ipAddressReducer from "./slices/ipAddressSlice";
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -20,11 +16,7 @@ const rootReducer = combineReducers({
   users: userReducer,
   callDetails: callDetailsReducer,
   voiceMail: voiceMailReducer,
-  chatList: chatListReducer,
-  callData: callDataReducer,
-  contacts: contactReducer,
-   history: historyReducer,
-   ipAddress: ipAddressReducer,
+  chatList: chatListReducer
 });
 
 export default rootReducer;

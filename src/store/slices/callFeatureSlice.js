@@ -6,8 +6,6 @@ const initialState = {
   isRecording: false,
   dialedPhone: "",
   isDNDActive: false,
-  modalOpenFlag: false,
-  selectedCallerId: null,
   sessions: {},
 };
 
@@ -26,12 +24,6 @@ const callFeatureSlice = createSlice({
     },
     setDialedPhone: (state, action) => {
       state.dialedPhone = action.payload;
-    },
-    setModalOpenFlag: (state, action) => {
-      state.modalOpenFlag = action.payload;
-    },
-    setSelectedCallerId: (state, action) => {
-      state.selectedCallerId = action.payload;
     },
     resetDialedPhone: (state) => {
       state.dialedPhone = "";
@@ -66,8 +58,6 @@ export const {
   addSession,
   removeSession,
   resetCallFeatures,
-  setModalOpenFlag,
-  setSelectedCallerId,
   setIsDNDActive,
   resetSessions,
 } = callFeatureSlice.actions;

@@ -39,13 +39,7 @@ const Organizations = () => {
       const filtered = companyList.filter((company) =>
         company.companyName?.toLowerCase().includes(search.toLowerCase())
       );
-
-      const sortedCompanies = [...filtered].sort((a, b) => {
-        const nameA = (a.companyName || "").toLowerCase();
-        const nameB = (b.companyName || "").toLowerCase();
-        return nameA.localeCompare(nameB);
-      });
-      setFilteredCompanies(sortedCompanies);
+      setFilteredCompanies(filtered);
     }
   }, [search, companyList]);
 
@@ -89,154 +83,136 @@ const Organizations = () => {
                 />
               </div>
             </div>
-          </div>
+          </div>{" "}
           <div
-            className="relative block w-full p-4 bg-white rounded-lg"
+            className="relative block w-full p-4 bg-white rounded-lg max-h-[calc(100vh-200px)] overflow-auto overflowScroll"
             style={{ boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.1)" }}
           >
-            <div className="relative block w-full max-h-[calc(100vh-200px)] overflow-auto overflowScroll">
-              {isLoading ? (
-                <TableSkeleton
-                  rows={6}
-                  columns={7}
-                  thdata={[
-                    "Company Name",
-                    "Company Code",
-                    "Status",
-                    "Fax",
-                    "SMS",
-                    "Voice",
-                    "Actions",
-                  ]}
-                />
-              ) : filteredCompanies?.length > 0 ? (
-                <table className="w-full border-collapse border border-gray-200 text-left text-sm">
-                  <thead className="sticky top-0 bg-secondary text-white z-10">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap"
-                      >
-                        Company Name
-                      </th>
-                      <th
-                        scope="col"
-                        className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap"
-                      >
-                        Company Code
-                      </th>
-                      <th
-                        scope="col"
-                        className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap"
-                      >
-                        Status
-                      </th>
-                      <th
-                        scope="col"
-                        className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap"
-                      >
-                        Fax
-                      </th>
-                      <th
-                        scope="col"
-                        className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap"
-                      >
-                        SMS
-                      </th>
-                      <th
-                        scope="col"
-                        className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap"
-                      >
-                        Voice
-                      </th>
-                      <th
-                        scope="col"
-                        className="border-b-[1px] border-gray-200 px-4 py-2 text-right whitespace-nowrap"
-                      >
-                        Actions
-                      </th>
+            {isLoading ? (
+              <TableSkeleton
+                rows={6}
+                columns={7}
+                thdata={[
+                  "Company Name",
+                  "Company Code",
+                  "Status",
+                  "Fax",
+                  "SMS",
+                  "Voice",
+                  "Actions",
+                ]}
+              />
+            ) : filteredCompanies?.length > 0 ? (
+              <table className="w-full border-collapse border border-gray-200 text-left text-sm">
+                <thead className="sticky top-0 bg-secondary text-white z-10">
+                  {" "}
+                  <tr>
+                    <th
+                      scope="col"
+                      className="border-b-[1px] border-gray-200 px-4 py-2"
+                    >
+                      Company Name
+                    </th>
+                    <th
+                      scope="col"
+                      className="border-b-[1px] border-gray-200 px-4 py-2"
+                    >
+                      Company Code
+                    </th>
+                    <th
+                      scope="col"
+                      className="border-b-[1px] border-gray-200 px-4 py-2"
+                    >
+                      Fax
+                    </th>
+                    <th
+                      scope="col"
+                      className="border-b-[1px] border-gray-200 px-4 py-2"
+                    >
+                      SMS
+                    </th>
+                    <th
+                      scope="col"
+                      className="border-b-[1px] border-gray-200 px-4 py-2"
+                    >
+                      Voice
+                    </th>
+                    <th
+                      scope="col"
+                      className="border-b-[1px] border-gray-200 px-4 py-2 text-right"
+                    >
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredCompanies?.map((company, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                        <div className="text-sm font-medium text-gray-900">
+                          {company?.companyName || "N/A"}
+                        </div>
+                      </td>{" "}
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                        <div className="text-sm text-gray-500">
+                          {company?.code || "N/A"}
+                        </div>
+                      </td>
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            company?.faxenable
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {company?.faxenable ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            company.smsenable
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {company.smsenable ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            company.voiceenable
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {company.voiceenable ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2 text-right">
+                        <Link
+                          to="#"
+                          className="flex items-center justify-end"
+                          onClick={() => handleEditOrasation(company)}
+                        >
+                          <img src={editIcon} className="max-w-5" alt="" />
+                        </Link>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredCompanies?.map((company, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2">
-                          <div className="text-sm font-medium text-gray-900">
-                            {company?.companyName || "N/A"}
-                          </div>
-                        </td>
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2">
-                          <div className="text-sm text-gray-500">
-                            {company?.code || "N/A"}
-                          </div>
-                        </td>
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              company?.is_active
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {company?.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              company?.faxenable
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {company?.faxenable ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              company.smsenable
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {company.smsenable ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              company.voiceenable
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {company.voiceenable ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2 text-right">
-                          <Link
-                            to="#"
-                            className="flex items-center justify-end"
-                            onClick={() => handleEditOrasation(company)}
-                          >
-                            <img src={editIcon} className="max-w-5" alt="" />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="flex items-center justify-center h-40">
-                  <div className="text-center text-gray-500">
-                    {search
-                      ? `No companies found matching "${search}"`
-                      : "No companies found"}
-                  </div>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="flex items-center justify-center h-40">
+                <div className="text-center text-gray-500">
+                  {search
+                    ? `No companies found matching "${search}"`
+                    : "No companies found"}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

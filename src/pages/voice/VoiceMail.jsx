@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useLocation } from "react-router";
+import { Link } from "react-router";
 import { deleteVoiceMail, readVoiceMail } from "../../api/callApi";
 import waveGif from "../../assets/dashboard/Animation.gif";
 import waveClose from "../../assets/dashboard/close.png";
@@ -31,13 +31,11 @@ const VoiceMail = () => {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deletingMsgId, setDeletingMsgId] = useState(null);
-  const [readMessages, setReadMessages] = useState(new Set());
   const audioRef = useRef(null);
   const extensionTenant = useSelector((state) => state.auth?.user?.data?.city);
   const extensionNumber = extensionTenant?.split("-")[0];
   const tenant = extensionTenant?.split("-")[1];
   const dispatch = useDispatch();
-  const location = useLocation();
 
   const debouncedSearch = useDebounce(search);
   const voiceDataHandler = async () => {
@@ -74,21 +72,6 @@ const VoiceMail = () => {
     }
   }, [debouncedSearch, voiceData]);
 
-  useEffect(() => {
-    const playMessageId = location.state?.playMessageId;
-    if (playMessageId && voiceData.length > 0) {
-      // Find the voicemail to play
-      const voicemailToPlay = voiceData.find(
-        (item) => item.Msgid === playMessageId
-      );
-      if (voicemailToPlay && !readMessages.has(playMessageId)) {
-        setAudioMsgId(playMessageId);
-        setIsAudioPlaying(true);
-        handleReadAudio(playMessageId);
-      }
-    }
-  }, [location.state, voiceData]);
-
   const handleCloseAudio = () => {
     setAudioMsgId(null);
     setIsAudioPlaying(false);
@@ -108,16 +91,8 @@ const VoiceMail = () => {
   };
 
   const handleReadAudio = async (msgId) => {
-    // Skip if already read
-    if (readMessages.has(msgId)) {
-      return;
-    }
-
     try {
       const response = await readVoiceMail(tenant, msgId);
-      // Add to read messages set
-      setReadMessages((prev) => new Set([...prev, msgId]));
-
       setVoiceData((prevData) => {
         return prevData.map((item) => {
           if (item.Msgid === msgId) {
@@ -166,6 +141,7 @@ const VoiceMail = () => {
 
       return response;
     } catch (error) {
+      console.log("error", error);
       errorToast(error?.response?.data?.error);
     }
   };
@@ -189,6 +165,7 @@ const VoiceMail = () => {
       setDeletingMsgId(null);
       return response;
     } catch (error) {
+      console.log("error", error);
       errorToast(error?.response?.data?.error);
     }
   };
@@ -235,156 +212,154 @@ const VoiceMail = () => {
           </div>
         </div>
         <div
-          className="relative block w-full p-4 bg-white rounded-lg"
+          className="relative block w-full bg-white rounded-lg p-4 overflow-y-auto max-h-[calc(100vh-200px)] overflowScroll"
           style={{ boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.1)" }}
         >
-          <div className="relative block w-full overflow-y-auto max-h-[calc(100vh-200px)] overflowScroll">
-            {isLoading ? (
-              <TableSkeleton
-                rows={8}
-                columns={4}
-                thdata={["Caller ID", "Duration", "Date & Time", "Msgid"]}
-              />
-            ) : filteredData?.length > 0 ? (
-              <table className="w-full border-collapse border border-gray-200 text-left text-sm">
-                <thead className="sticky top-0 bg-secondary text-white z-10">
-                  <tr>
-                    <th className="border-b-[1px] border-gray-200 px-4 py-2">
-                      Caller ID
-                    </th>
-                    <th className="border-b-[1px] border-gray-200 px-4 py-2">
-                      Duration
-                    </th>
-                    <th className="border-b-[1px] border-gray-200 px-4 py-2">
-                      Date
-                    </th>
-                    <th className="border-b-[1px] border-gray-200 px-4 py-2 text-right">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredData.map((item, idx) => {
-                    // Clean CallerID: remove quotes and angle brackets
-                    const cleanCallerID = item.CallerID
-                      ? item.CallerID.replace(/["<>]/g, "").trim()
-                      : "";
+          {isLoading ? (
+            <TableSkeleton
+              rows={8}
+              columns={4}
+              thdata={["Caller ID", "Duration", "Date & Time", "Msgid"]}
+            />
+          ) : filteredData?.length > 0 ? (
+            <table className="w-full border-collapse border border-gray-200 text-left text-sm">
+              <thead className="sticky top-0 bg-secondary text-white z-10">
+                <tr>
+                  <th className="border-b-[1px] border-gray-200 px-4 py-2">
+                    Caller ID
+                  </th>
+                  <th className="border-b-[1px] border-gray-200 px-4 py-2">
+                    Duration
+                  </th>
+                  <th className="border-b-[1px] border-gray-200 px-4 py-2">
+                    Date
+                  </th>
+                  <th className="border-b-[1px] border-gray-200 px-4 py-2 text-right">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredData.map((item, idx) => {
+                  // Clean CallerID: remove quotes and angle brackets
+                  const cleanCallerID = item.CallerID
+                    ? item.CallerID.replace(/["<>]/g, "").trim()
+                    : "";
 
-                    // Format duration
-                    let durationValue = parseInt(item.Duration, 10) || 0;
-                    let formattedDuration =
-                      durationValue > 60
-                        ? `${Math.floor(durationValue / 60)}min ${String(
-                            durationValue % 60
-                          ).padStart(2, "0")}sec`
-                        : `${durationValue}sec`;
-                    const isUnplayed = item.isUnplayed;
-                    const isPlayed = item.isPlayed;
-                    const isCurrentPlaying =
-                      audioMsgId === item.Msgid && isAudioPlaying;
+                  // Format duration
+                  let durationValue = parseInt(item.Duration, 10) || 0;
+                  let formattedDuration =
+                    durationValue > 60
+                      ? `${Math.floor(durationValue / 60)}min ${String(
+                          durationValue % 60
+                        ).padStart(2, "0")}sec`
+                      : `${durationValue}sec`;
+                  const isUnplayed = item.isUnplayed;
+                  const isPlayed = item.isPlayed;
+                  const isCurrentPlaying =
+                    audioMsgId === item.Msgid && isAudioPlaying;
 
-                    return (
-                      <tr
-                        key={item.Msgid || idx}
-                        className={`hover:bg-gray-50 ${
-                          isUnplayed ? "bg-blue-50 font-semibold" : ""
-                        }`}
-                      >
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2">
-                          {isUnplayed && (
-                            <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  return (
+                    <tr
+                      key={item.Msgid || idx}
+                      className={`hover:bg-gray-50 ${
+                        isUnplayed ? "bg-blue-50 font-semibold" : ""
+                      }`}
+                    >
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                        {isUnplayed && (
+                          <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                        )}
+                        {isPlayed && (
+                          <span className="inline-block w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                        )}
+                        {cleanCallerID}
+                      </td>
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                        {formattedDuration}
+                      </td>
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                        {convertCSTToLocalTime(item.DateTime)}
+                      </td>
+                      <td className="border-b-[1px] border-gray-200 px-4 py-2 text-right relative">
+                        <span className="relative flex items-center justify-end">
+                          {audioMsgId === item.Msgid && (
+                            <audio
+                              ref={audioRef}
+                              controls
+                              autoPlay
+                              src={`${
+                                import.meta.env.VITE_MIRTA_API_BASE_URL
+                              }/proxyapi.php?key=${
+                                import.meta.env.VITE_API_KEY
+                              }&reqtype=VOICEMAIL&tenant=${tenant}&action=message&msgid=${audioMsgId}`}
+                              onEnded={handleAudioEnded}
+                              onPlay={() => {
+                                setIsAudioPlaying(true);
+                                handleReadAudio(item.Msgid);
+                              }}
+                              onPause={() => setIsAudioPlaying(false)}
+                            />
                           )}
-                          {isPlayed && (
-                            <span className="inline-block w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
-                          )}
-                          {cleanCallerID}
-                        </td>
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2">
-                          {formattedDuration}
-                        </td>
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2">
-                          {convertCSTToLocalTime(item.DateTime)}
-                        </td>
-                        <td className="border-b-[1px] border-gray-200 px-4 py-2 text-right relative">
-                          <span className="relative flex items-center justify-end">
-                            {audioMsgId === item.Msgid && (
-                              <audio
-                                ref={audioRef}
-                                controls
-                                autoPlay
-                                src={`${
-                                  import.meta.env.VITE_MIRTA_API_BASE_URL
-                                }/proxyapi.php?key=${
-                                  import.meta.env.VITE_API_KEY
-                                }&reqtype=VOICEMAIL&tenant=${tenant}&action=message&msgid=${audioMsgId}`}
-                                onEnded={handleAudioEnded}
-                                onPlay={() => {
-                                  setIsAudioPlaying(true);
-                                  handleReadAudio(item.Msgid);
-                                }}
-                                onPause={() => setIsAudioPlaying(false)}
-                              />
-                            )}
-                            {isCurrentPlaying ? (
-                              <>
-                                <span className="inline-block align-middle">
-                                  <img
-                                    src={waveGif}
-                                    alt="wave"
-                                    className="w-14 h-8"
-                                  />
-                                </span>
-                                <Link
-                                  to="#"
-                                  onClick={handleCloseAudio}
-                                  className="ml-2 align-middle"
-                                >
-                                  <img
-                                    src={waveClose}
-                                    alt="close"
-                                    className="w-4 h-4 inline-block"
-                                    style={{ verticalAlign: "middle" }}
-                                  />
-                                </Link>
-                              </>
-                            ) : (
-                              <button
-                                className="cursor-pointer"
-                                onClick={() => {
-                                  if (audioRef.current) {
-                                    audioRef.current.pause();
-                                    audioRef.current.currentTime = 0;
-                                  }
-                                  setAudioMsgId(item.Msgid);
-                                  setIsAudioPlaying(true);
-                                  handleReadAudio(item.Msgid);
-                                }}
+                          {isCurrentPlaying ? (
+                            <>
+                              <span className="inline-block align-middle">
+                                <img
+                                  src={waveGif}
+                                  alt="wave"
+                                  className="w-14 h-8"
+                                />
+                              </span>
+                              <Link
+                                to="#"
+                                onClick={handleCloseAudio}
+                                className="ml-2 align-middle"
                               >
-                                <span className="flex items-center justify-end">
-                                  <span className="inline-block align-middle w-16"></span>
-                                  <img src={playIcon} alt="Play" />
-                                </span>
-                              </button>
-                            )}
+                                <img
+                                  src={waveClose}
+                                  alt="close"
+                                  className="w-4 h-4 inline-block"
+                                  style={{ verticalAlign: "middle" }}
+                                />
+                              </Link>
+                            </>
+                          ) : (
                             <button
-                              className="ml-2 cursor-pointer"
-                              onClick={() => initiateDelete(item.Msgid)}
+                              className="cursor-pointer"
+                              onClick={() => {
+                                if (audioRef.current) {
+                                  audioRef.current.pause();
+                                  audioRef.current.currentTime = 0;
+                                }
+                                setAudioMsgId(item.Msgid);
+                                setIsAudioPlaying(true);
+                                handleReadAudio(item.Msgid);
+                              }}
                             >
-                              <img src={deleteIcon} alt="" />
+                              <span className="flex items-center justify-end">
+                                <span className="inline-block align-middle w-16"></span>
+                                <img src={playIcon} alt="Play" />
+                              </span>
                             </button>
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-center text-gray-500 py-10">
-                No Voicemail Found.
-              </p>
-            )}
-          </div>
+                          )}
+                          <button
+                            className="ml-2 cursor-pointer"
+                            onClick={() => initiateDelete(item.Msgid)}
+                          >
+                            <img src={deleteIcon} alt="" />
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-center text-gray-500 py-10">
+              No Voicemail Found.
+            </p>
+          )}
         </div>
       </div>
     </section>

@@ -42,11 +42,17 @@ export const clearStopRingtoneFunction = () => {
 
 // Request permission for displaying notifications
 export const requestNotificationPermission = async () => {
-  if (!("Notification" in window)) return false;
+  if (!("Notification" in window)) {
+    console.log("This browser does not support desktop notifications");
+    return false;
+  }
+
   let permission = Notification.permission;
+
   if (permission !== "granted" && permission !== "denied") {
     permission = await Notification.requestPermission();
   }
+
   return permission === "granted";
 };
 
@@ -58,30 +64,38 @@ export const showIncomingCallNotification = async (callerName, callerNumber) => 
 
     // Default caller name if none provided
     const displayName = callerName || "Unknown caller";
-    const displayNumber = callerNumber || ""; 
+    const displayNumber = callerNumber || "";    // Create and return the notification
     const notification = new Notification("Incoming Call", {
       body: `${displayName} ${displayNumber ? `(${displayNumber})` : ""} is calling you. Click to answer.`,
-      icon: "/src/assets/favicon-32x32.png",
-      requireInteraction: true,
-    });
+      icon: "/favicon.ico", // Use your app logo
+      requireInteraction: true, // Keep notification visible until user dismisses it
+    });    // Handle notification click - answer the call
     notification.onclick = () => {
-      window.focus();
+      window.focus(); // Focus the window when the notification is clicked
       notification.close();
       
-     
+      // Call the accept function directly if available
+      // No navigation, just answer the call
       if (typeof currentAcceptCallFunction === 'function') {
+        console.log('Executing notification click handler');
         currentAcceptCallFunction();
       } else {
         console.warn('No notification click handler available');
       }
     };
+
+    // Stop ringtone when notification is closed
     if ('onclose' in notification) {
+      // Some browsers support onclose event
       notification.onclose = () => {
+        console.log('Notification closed, stopping ringtone');
         if (typeof stopRingtoneFunction === 'function') {
           stopRingtoneFunction();
         }
       };
     }
+
+    // Auto close after 30 seconds in case call is missed or handled
     setTimeout(() => {
       notification.close();
     }, 30000);
@@ -104,14 +118,22 @@ export const showMissedCallNotification = async (callerName, callerNumber) => {
 
     const notification = new Notification("Missed Call", {
       body: `You missed a call from ${displayName} ${displayNumber ? `(${displayNumber})` : ""}`,
-      icon: "/src/assets/favicon-32x32.png",
+      icon: "/favicon.ico", // Use your app logo
     });
+
+    // Clicking on a missed call notification could open the call history
+    // or dial back the caller directly, depending on your app's functionality
     notification.onclick = () => {
       window.focus();
       
+      // Navigate to call history or directly initiate a callback
+      // This part depends on your app's navigation or state management
+      // For example, you could dispatch a Redux action or navigate to a specific route
       try {
+        // If the app has a callback function for handling missed call clicks
         const callbackNumber = callerNumber || "";
         if (callbackNumber) {
+          // Dispatch an event that app components can listen for
           const callbackEvent = new CustomEvent('missedCallClicked', { 
             detail: { 
               number: callbackNumber,
@@ -119,6 +141,7 @@ export const showMissedCallNotification = async (callerName, callerNumber) => {
             } 
           });
           window.dispatchEvent(callbackEvent);
+          console.log('Dispatched missedCallClicked event with number:', callbackNumber);
         }
       } catch (err) {
         console.warn('Error handling missed call notification click:', err);

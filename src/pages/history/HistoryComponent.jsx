@@ -1,127 +1,94 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { Link, useNavigate } from "react-router";
+import { useSelector } from "react-redux";
 import chatIcon from "../../assets/dashboard/chat.png";
+import dialIcon from "../../assets/dashboard/dial.png";
 import incomingCall from "../../assets/dashboard/incoming-green.svg";
 import missedCall from "../../assets/dashboard/missed3.svg";
 import outgoingCall from "../../assets/dashboard/outgoing-green.svg";
 import phoneIcon from "../../assets/dashboard/phone-call.png";
 import searchIcon from "../../assets/layout/searchIcon.png";
+import { transformApiData } from "../../helpers/transformApiData";
 import useDebounce from "../../hooks/useDebounce";
 import { TableSkeleton } from "../../skeleton/Skeleton";
-import {
-  convertCSTToLocalTime,
-  formatTimeDuration,
-  formatUSAPhoneNumber,
-  normalizePhoneNumber,
-} from "../../utils/common";
+import { formatTimeDuration } from "../../utils/common";
 import { getDateRangeForFilter } from "../../utils/dateFilters";
-import {
-  fetchHistoryData,
-  selectAllCallDetails,
-  selectHistoryLoading,
-  selectDispositionTypes,
-} from "../../store/slices/historySlice";
-import useSipSession from "../../hooks/useSipSession";
-import {
-  resetDialedPhone,
-  setDialedPhone,
-  setModalOpenFlag,
-} from "../../store/slices/callFeatureSlice";
 
 const HistoryComponent = () => {
   const [search, setSearch] = useState("");
+  const [allCallDetails, setAllCallDetails] = useState([]);
   const [visibleCallDetails, setVisibleCallDetails] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const tableRef = useRef(null);
   const itemsToShow = 20;
-  const debouncedSearch = useDebounce(search);
+
+  const debouncedSearch = useDebounce(search, 500);
+
+  // Get user data from Redux store
   const extensionTenant = useSelector((state) => state.auth?.user?.data?.city);
   const extensionNumber = extensionTenant?.split("-")[0];
-  const tenant = useSelector((state) => state.auth?.user?.data?.company?.code);
-  const userCompanyCode = useSelector(
+  const tenant = useSelector(
+    (state) => state.auth?.selectedOrganization?.companyName
+  );
+const userCompanyCode = useSelector(
     (state) => state.auth?.user?.data?.extension?.phone
   );
-  const myExtensionData = useSelector(
-    (state) => state?.auth?.user?.data?.extension[0]
-  );
-  const selectedCallerId = useSelector(
-    (state) => state.callFeature.selectedCallerId
-  );
-  const activeLineId = useSelector((state) => state.sip.activeLineId);
-  const lines = useSelector((state) => state.sip.lines);
+  const userRole = "user";
 
-  const { makeCall, sessionRef } = useSipSession();
+  // Get current week's date range
   const dateRange = getDateRangeForFilter("week");
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
 
-  // Redux selectors for call data
-  const allCallDetails = useSelector(selectAllCallDetails);
-  const loading = useSelector(selectHistoryLoading);
-  const dispositionTypes = useSelector(selectDispositionTypes);
+  const fetchCallData = async () => {
+    try {
+      setLoading(true);
+      const response = await transformApiData(
+        {
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          extensionNumber,
+          extensionTenant,
+          tenant,
+        },
+        userCompanyCode,
+        userRole
+      );
+      setAllCallDetails(response);
+      setVisibleCallDetails(response.slice(0, itemsToShow));
+    } catch (error) {
+      console.error("Error fetching call data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Fetch call data from Redux slice
   useEffect(() => {
     if (!extensionNumber || !extensionTenant || !tenant) return;
-    dispatch(
-      fetchHistoryData({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        extensionNumber,
-        extensionTenant,
-        tenant,
-        userCompanyCode,
-        userRole: "user",
-      })
-    );
-  }, [extensionNumber, extensionTenant, tenant, dispatch]);
-
-  const getCallStatusIcon = (call) => {
-    const status = call?.status || "";
-    const direction = call?.direction || "";
-    if (status === "ANSWERED") {
-      return direction === "Incoming" ? incomingCall : outgoingCall;
-    }
-    return missedCall;
-  };
+    fetchCallData();
+  }, [extensionNumber, extensionTenant, tenant]);
 
   const filterByStatusAndSearch = (calls, status, searchTerm) => {
     let filtered = [...calls];
+
+    // Apply status filter
     if (status !== "ALL") {
-      filtered = filtered.filter((call) => {
-        if (status === "ANSWERED") {
-          return call.status === "ANSWERED" && call.duration > 0;
-        }
-        return call.status === status;
-      });
+      filtered = filtered.filter((call) => call.status === status);
     }
-    
+
+    // Apply search filter
     if (searchTerm.trim()) {
-      const searchTermLower = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (call) =>
-          (call.callerNumber &&
-            call.callerNumber.toLowerCase().includes(searchTermLower)) ||
-          (call.receiver && call.receiver.toLowerCase().includes(searchTermLower))
+          call.callerNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          call.callerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          call.extension?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    // Sort by date (descending)
-    filtered.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
     return filtered;
   };
 
-  const getStatusCount = (status) => {
-    if (status === "ALL") return allCallDetails.length;
-    return allCallDetails.filter((call) => {
-      if (status === "ANSWERED") {
-        return call.status === "ANSWERED" && call.duration > 0;
-      }
-      return call.status === status;
-    }).length;
-  };
-
+  // Handle both status and search filters
   useEffect(() => {
     if (!loading) {
       const filtered = filterByStatusAndSearch(
@@ -131,26 +98,26 @@ const HistoryComponent = () => {
       );
       setVisibleCallDetails(filtered.slice(0, itemsToShow));
     }
-  }, [debouncedSearch, allCallDetails, selectedStatus, loading]);
+  }, [debouncedSearch, allCallDetails, selectedStatus]);
 
+  const getStatusCount = (status) => {
+    if (status === "ALL") return allCallDetails.length;
+    return allCallDetails.filter((call) => call.status === status).length;
+  };
+
+  // Handle scroll for infinite loading
   const handleScroll = () => {
     if (!tableRef.current) return;
+
     const { scrollTop, scrollHeight, clientHeight } = tableRef.current;
     if (scrollTop + clientHeight >= scrollHeight - 10) {
       const currentLength = visibleCallDetails.length;
-      const filteredData = filterByStatusAndSearch(
-        allCallDetails,
-        selectedStatus,
-        debouncedSearch
+      const nextBatch = allCallDetails.slice(
+        currentLength,
+        currentLength + itemsToShow
       );
-      if (currentLength < filteredData.length) {
-        const nextBatch = filteredData.slice(
-          currentLength,
-          currentLength + itemsToShow
-        );
-        if (nextBatch.length > 0) {
-          setVisibleCallDetails((prev) => [...prev, ...nextBatch]);
-        }
+      if (nextBatch.length > 0) {
+        setVisibleCallDetails((prev) => [...prev, ...nextBatch]);
       }
     }
   };
@@ -162,75 +129,6 @@ const HistoryComponent = () => {
       return () => tableElement.removeEventListener("scroll", handleScroll);
     }
   }, [visibleCallDetails, allCallDetails]);
-
-  const isMyNumber = (number) => {
-    if (!myExtensionData) return false;
-    if (number === myExtensionData.phone) return true;
-    return myExtensionData.phones?.some(
-      (phone) => number === phone.formatedPhone
-    );
-  };
-
-  const getExternalNumber = (call) => {
-    const callerIsMine = isMyNumber(call.callerNumber);
-    const receiverIsMine = isMyNumber(call.receiver);
-
-    if (callerIsMine) {
-      return call.receiver;
-    } else if (receiverIsMine) {
-      return call.callerNumber;
-    } else {
-      return call.direction === "Incoming" ? call.callerNumber : call.receiver;
-    }
-  };
-
-  const isValidForChat = (number) => {
-    if (!number) return false;
-    const digits = number.replace(/\D/g, "");
-    return digits.length >= 10;
-  };
-
-  useEffect(() => {
-    if (!sessionRef.current) {
-      dispatch(resetDialedPhone());
-      dispatch(setModalOpenFlag(false));
-    }
-  }, [sessionRef.current, dispatch]);
-
-  const handleCall = (call) => {
-    let numberToCall = normalizePhoneNumber(selectedCallerId);
-    let dialedPhone = getExternalNumber(call);
-
-    if (dialedPhone && typeof dialedPhone === "string") {
-      const digits = dialedPhone.match(/\d+/g);
-      if (digits && digits.length > 0) {
-        dialedPhone = digits.join("");
-      }
-    }
-
-    const hasActiveCallThatWillBeHeld =
-      activeLineId !== null &&
-      lines[activeLineId] &&
-      !lines[activeLineId].onHold &&
-      !lines[activeLineId].ringing;
-
-    const lineId = makeCall({
-      phone: dialedPhone,
-      selectedNumber: numberToCall,
-    });
-
-    if (lineId) {
-      dispatch(setDialedPhone(dialedPhone));
-      if (hasActiveCallThatWillBeHeld) {
-        console.warn(
-          `Previous call on line ${activeLineId} was automatically put on hold`
-        );
-      }
-    } else {
-      console.warn("Could not make call - all lines may be in use");
-    }
-    dispatch(setModalOpenFlag(true));
-  };
 
   return (
     <section className="relative flex w-[calc(100%-32px)] m-4 h-[calc(100%-40px)]">
@@ -254,171 +152,137 @@ const HistoryComponent = () => {
         </div>
 
         <div className="md:flex grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 mb-4">
-          {dispositionTypes?.map((status) => (
-            <button
-              key={status}
-              onClick={() => setSelectedStatus(status)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium border-[1px] border-secondary transition-colors duration-200 
+          {["ALL", "ANSWERED", "MISSED", "FAILED", "BUSY", "NO ANSWER"]?.map(
+            (status) => (
+              <button
+                key={status}
+                onClick={() => setSelectedStatus(status)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium border-[1px] border-secondary transition-colors duration-200 
                 ${
                   selectedStatus === status
                     ? "bg-secondary !text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
-            >
-              {status} ({getStatusCount(status)})
-            </button>
-          ))}
+              >
+                {status} ({getStatusCount(status)})
+              </button>
+            )
+          )}
         </div>
 
         <div
-          className="relative block w-full bg-white rounded-lg p-4"
+          ref={tableRef}
+          className="relative block w-full bg-white rounded-lg p-4 overflow-y-auto max-h-[calc(100vh-280px)] overflowScroll"
           style={{ boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.1)" }}
         >
-          <div
-            ref={tableRef}
-            className="relative block w-full overflow-y-auto max-h-[calc(100vh-300px)] overflowScroll"
-          >
-            {loading ? (
-              <TableSkeleton
-                rows={8}
-                columns={4}
-                thdata={[
-                  "Caller Number",
-                  "Receiver Number",
-                  "Date",
-                  "Duration",
-                  "Action",
-                ]}
-              />
-            ) : visibleCallDetails?.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[calc(100vh-350px)]">
-                <p className="text-gray-500 text-lg font-medium">
-                  NO History Found
-                </p>
-                <p className="text-gray-400 text-sm mt-2">
-                  {debouncedSearch?.trim() || selectedStatus !== "ALL"
-                    ? "Try changing your search or filter criteria"
-                    : "No call history available for this week"}
-                </p>
-              </div>
-            ) : (
-              <table className="w-full border-collapse border border-gray-200 text-left text-sm">
-                <thead className="sticky top-0 bg-secondary text-white z-10">
-                  <tr>
-                    <th className="border-b-[1px] border-gray-200 bg-secondary z-20 px-4 py-2 whitespace-nowrap">
-                      Caller Number
-                    </th>
-                    <th className="border-b-[1px] border-gray-200 bg-secondary z-20 px-4 py-2 whitespace-nowrap">
-                      Receiver Number
-                    </th>
-                    <th className="border-b-[1px] border-gray-200 bg-secondary z-20 px-4 py-2 whitespace-nowrap">
-                      Date
-                    </th>
-                    <th className="border-b-[1px] border-gray-200 bg-secondary z-20 px-4 py-2 whitespace-nowrap">
-                      Duration
-                    </th>
-                    <th className="border-b-[1px] border-gray-200 bg-secondary z-20 px-4 py-2 text-right whitespace-nowrap">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleCallDetails?.map((call, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap">
-                        <span className="flex items-center gap-4">
-                          <span>
-                            <img
-                              src={getCallStatusIcon(call)}
-                              alt="Call Icon"
-                              className="max-w-5 h-auto"
-                            />
-                          </span>
-                          <span>
-                            {call?.callerName}{" "}
-                            {formatUSAPhoneNumber(call?.callerNumber)}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap">
-                        <span>{formatUSAPhoneNumber(call?.receiver)}</span>
-                      </td>
-                      <td className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap">
-                        {convertCSTToLocalTime(call?.date)}
-                      </td>
-                      <td className="border-b-[1px] border-gray-200 px-4 py-2 whitespace-nowrap">
-                        {formatTimeDuration(call?.duration)}
-                      </td>
-                      <td className="border-b-[1px] border-gray-200 px-4 py-2 text-right whitespace-nowrap">
+          {loading ? (
+            <TableSkeleton
+              rows={8}
+              columns={4}
+              thdata={["Caller Number", "Date", "Duration", "Action"]}
+            />
+          ) : visibleCallDetails?.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-350px)]">
+              <p className="text-gray-500 text-lg font-medium">
+                NO History Found
+              </p>
+              <p className="text-gray-400 text-sm mt-2">
+                {debouncedSearch?.trim() || selectedStatus !== "ALL"
+                  ? "Try changing your search or filter criteria"
+                  : "No call history available for this week"}
+              </p>
+            </div>
+          ) : (
+            <table className="w-full border-collapse border border-gray-200 text-left text-sm">
+              <thead className="sticky top-0 bg-secondary text-white z-10">
+                <tr>
+                  <th className="border-b-[1px] border-gray-200 px-4 py-2">
+                    Caller Number{" "}
+                  </th>
+                  <th className="border-b-[1px] border-gray-200 px-4 py-2">
+                    Date
+                  </th>
+                  <th className="border-b-[1px] border-gray-200 px-4 py-2">
+                    Duration
+                  </th>
+                  <th className="border-b-[1px] border-gray-200 px-4 py-2 text-right">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleCallDetails?.map((call, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                      <span className="flex items-center gap-4">
                         <span>
-                          <ul className="flex items-center justify-end gap-2.5">
-                            {isValidForChat(getExternalNumber(call)) && (
-                              <li className="relative group chat-icon">
-                                <Link
-                                  to="#"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    const chatNumber = getExternalNumber(call);
-                                    navigate(
-                                      `/chat?phoneNumber=${chatNumber}`,
-                                      {
-                                        state: {
-                                          contact: call,
-                                        },
-                                      }
-                                    );
-                                  }}
-                                >
-                                  <img
-                                    src={chatIcon}
-                                    alt=""
-                                    className="max-w-5"
-                                  />
-                                </Link>
-                                <span
-                                  className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-50 bg-secondary !text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg"
-                                  style={{
-                                    boxShadow:
-                                      "0px 2px 8px rgba(103,48,143,0.15)",
-                                  }}
-                                >
-                                  Chat
-                                </span>
-                              </li>
-                            )}
-                            <li className="relative group phone-icon">
-                              <Link
-                                to="#"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleCall(call);
-                                }}
-                              >
-                                <img
-                                  src={phoneIcon}
-                                  alt=""
-                                  className="max-w-5"
-                                />
-                              </Link>
-                              <span
-                                className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-50 bg-secondary !text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg"
-                                style={{
-                                  boxShadow:
-                                    "0px 2px 8px rgba(103,48,143,0.15)",
-                                }}
-                              >
-                                Call
-                              </span>
-                            </li>
-                          </ul>
+                          <img
+                            src={
+                              call?.status === "ANSWERED" &&
+                              call.direction === "Incoming"
+                                ? incomingCall
+                                : call?.status === "ANSWERED" &&
+                                  call.direction === "Outgoing"
+                                ? outgoingCall
+                                : missedCall
+                            }
+                            alt="Call Icon"
+                            className="max-w-5 h-auto"
+                          />
                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+                        <span>{call?.callerNumber}</span>
+                      </span>
+                    </td>
+                    <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                      {call?.date}
+                    </td>
+                    <td className="border-b-[1px] border-gray-200 px-4 py-2">
+                      {formatTimeDuration(call?.duration)}
+                    </td>
+                    <td className="border-b-[1px] border-gray-200 px-4 py-2 text-right">
+                      <span>
+                        <ul className="flex items-center justify-end gap-2.5">
+                          <li className="relative group dial-icon">
+                            <img src={dialIcon} alt="" className="max-w-5" />
+                            <span
+                              className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-50 bg-secondary !text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg"
+                              style={{
+                                boxShadow: "0px 2px 8px rgba(103,48,143,0.15)",
+                              }}
+                            >
+                              Edit before calling
+                            </span>
+                          </li>
+                          <li className="relative group chat-icon">
+                            <img src={chatIcon} alt="" className="max-w-5" />
+                            <span
+                              className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-50 bg-secondary !text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg"
+                              style={{
+                                boxShadow: "0px 2px 8px rgba(103,48,143,0.15)",
+                              }}
+                            >
+                              Chat
+                            </span>
+                          </li>
+                          <li className="relative group phone-icon">
+                            <img src={phoneIcon} alt="" className="max-w-5" />
+                            <span
+                              className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-50 bg-secondary !text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg"
+                              style={{
+                                boxShadow: "0px 2px 8px rgba(103,48,143,0.15)",
+                              }}
+                            >
+                              Call
+                            </span>
+                          </li>
+                        </ul>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </section>

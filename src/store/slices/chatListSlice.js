@@ -141,7 +141,6 @@ const chatListSlice = createSlice({
       .addCase(fetchChatList.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || action.error.message;
-        state.data = [];
       });
   },
 });

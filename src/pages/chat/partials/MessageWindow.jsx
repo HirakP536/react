@@ -3,12 +3,6 @@ import { useState } from "react";
 const MessageWindow = ({ message, isSender }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
 
-  // Handle both socket and API response formats
-  const messageContent = message.content || message.message || "";
-  const messageAttachments = message.attachments || [];
-  const messageImage = message.image || null;
-  const messageTimestamp = message.created_at || new Date().toISOString();
-
   return (
     <>
       <div
@@ -19,19 +13,19 @@ const MessageWindow = ({ message, isSender }) => {
         }`}
         style={{ boxShadow: "0px 0px 15px rgba(0, 0, 0, 0.1)" }}
       >
-        {messageContent && (
+        {(message.content || message.message) && (
           <span
-            className={`mb-0.5 break-words ${isSender ? "!text-white" : "text-primary"}`}
+            className={`mb-0.5 ${isSender ? "!text-white" : "text-primary"}`}
           >
-            {messageContent}
+            {message.content || message.message}
           </span>
         )}
-        {Array.isArray(messageAttachments) &&
-          messageAttachments.length > 0 &&
-          messageAttachments.map((file, idx) => {
+        {Array.isArray(message.attachments) &&
+          message.attachments.length > 0 &&
+          message.attachments.map((file, idx) => {
             const fullUrl = import.meta.env.VITE_API_BASE_URL + file.file_url;
             return (
-              <div key={idx} className="mt-1 max-w-[200px]">
+              <div key={idx} className="mt-1 max-w-[500px]">
                 <img
                   src={fullUrl}
                   alt={file.file_name || "attachment"}
@@ -41,21 +35,21 @@ const MessageWindow = ({ message, isSender }) => {
               </div>
             );
           })}
-        {messageImage && !messageAttachments.length && (
-          <div className="mt-1 max-w-[200px]">
+        {message.image && !message.attachments && (
+          <div className="mt-1 max-w-[500px]">
             <img
               src={
-                messageImage.startsWith("data:image")
-                  ? messageImage
-                  : `data:image/*;base64,${messageImage}`
+                message.image.startsWith("data:image")
+                  ? message.image
+                  : `data:image/*;base64,${message.image}`
               }
               alt={message.imageName || "attachment"}
               className="max-w-full rounded-lg border cursor-pointer"
               onClick={() =>
                 setPreviewUrl(
-                  messageImage.startsWith("data:image")
-                    ? messageImage
-                    : `data:image/*;base64,${messageImage}`
+                  message.image.startsWith("data:image")
+                    ? message.image
+                    : `data:image/*;base64,${message.image}`
                 )
               }
             />
@@ -67,7 +61,7 @@ const MessageWindow = ({ message, isSender }) => {
             isSender ? "!text-white" : "text-gray-500"
           }`}
         >
-          {new Date(messageTimestamp).toLocaleTimeString([], {
+          {new Date(message.created_at).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           })}

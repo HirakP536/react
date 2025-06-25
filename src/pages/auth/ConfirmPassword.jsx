@@ -1,48 +1,33 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useFormik } from "formik";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { forgotPassword, resendApiHandler } from "../../api/authApi";
 import AuthImg from "../../assets/auth/auth.gif";
 import Logo from "../../assets/auth/logo.png";
-import housetonLogo from "../../assets/houston.png";
 import {
   InputComponent,
   OTPInputComponent,
 } from "../../components/common/InputComponent";
-// import LoginButton from "../../components/common/LoginButton";
 import LoginButton from "../../components/common/LoginButton";
 import ResendTimer from "../../components/common/ResendTimer";
-import { errorToast } from "../../components/common/ToastContainer";
-import { confirmSchema } from "../../schemas/authSchema";
-import { setNewUser, setOTPVerified } from "../../store/slices/authSlice";
-import SuccessModal from "./SuccessModal";
 import {
-  GoogleReCaptchaProvider,
-  useGoogleReCaptcha,
-} from "react-google-recaptcha-v3";
-import { fetchIpAddress } from "../../store/slices/ipAddressSlice";
+  errorToast,
+  successToast,
+} from "../../components/common/ToastContainer";
+import { confirmSchema } from "../../schemas/authSchema";
+import { setOTPVerified } from "../../store/slices/authSlice";
+import housetonLogo from "../../assets/houston.png";
 
-const ConfirmPasswordComponent = () => {
+const ConfirmPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [otp, setOtp] = useState(Array(6).fill(""));
   const [touched, setTouched] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const email = useSelector((state) => state?.auth?.user?.data?.email);
-  const otpEmail = useSelector((state) => state?.auth?.email);
+  const email = useSelector((state) => state.auth?.email);
   const OTPVerified = useSelector((state) => state.auth?.OTPVerified);
-  const isNewUser = useSelector((state) => state?.auth?.newUser);
   const uuid = useSelector((state) => state.auth?.uuid);
+  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { executeRecaptcha } = useGoogleReCaptcha();
-  const { ip } = useSelector((state) => state.ipAddress);
-
-  useEffect(() => {
-    if (!ip) {
-      dispatch(fetchIpAddress());
-    }
-  }, [dispatch, ip]);
 
   const handleOtpChange = (index, value) => {
     const newOtp = [...otp];
@@ -57,37 +42,20 @@ const ConfirmPasswordComponent = () => {
     setTouched(true);
   };
 
-  const getValidEmail = () => {
-    return email || otpEmail || "";
-  };
-
   const verifyOtp = async () => {
     setIsLoading(true);
     try {
-      const validEmail = getValidEmail();
       const otpValue = otp.join("");
-      if (!executeRecaptcha) {
-        console.warn("reCAPTCHA not yet available");
-        errorToast("Error verifying security check. Please try again.");
-        setIsLoading(false);
-        return;
-      }
-
-      const recaptchaToken = await executeRecaptcha("login");
-      let userIp = ip;
       let paylaod = {
-        email: validEmail,
+        email: email,
         otp: otpValue,
-        recaptchaToken,
-        ipAddress: userIp,
       };
-
       const response = await forgotPassword(paylaod);
-      dispatch(setOTPVerified(true));
-      dispatch(setNewUser(true));
       await resendApiHandler(uuid);
+      dispatch(setOTPVerified(true));
       return response;
     } catch (error) {
+      console.error(error);
       errorToast(error?.response?.data?.error);
     } finally {
       setIsLoading(false);
@@ -96,67 +64,40 @@ const ConfirmPasswordComponent = () => {
 
   const formik = useFormik({
     initialValues: {
-      email: getValidEmail(),
+      email: email,
       password: "",
-      confirmPassword: "",
     },
-    enableReinitialize: true,
-    validateOnChange: true,
-    validateOnBlur: true,
     validationSchema: confirmSchema,
     onSubmit: async (values) => {
-      const validEmail = getValidEmail();
-      const { password } = values;
+      const { email, password } = values;
       setIsLoading(true);
       try {
-        if (!executeRecaptcha) {
-          console.warn("reCAPTCHA not yet available");
-          errorToast("Error verifying security check. Please try again.");
-          setIsLoading(false);
-          return;
-        }
-
-        const recaptchaToken = await executeRecaptcha("login");
-        let userIp = ip;
-        let payload = {
-          email: validEmail,
-          password: password,
-          recaptchaToken,
-          ipAddress: userIp,
-        };
-        const response = await forgotPassword(payload);
-        dispatch(setOTPVerified(false));
-        setIsOpen(true);
-        dispatch(setNewUser(false));
+        const response = await forgotPassword({ email, password });
+        successToast("Password changed successfully");
+        setTimeout(() => {
+          dispatch(setOTPVerified(false));
+          navigate("/login");
+        }, 3000);
         return response;
       } catch (error) {
-        errorToast(error?.response?.data?.error || "Something went wrong");
+        console.error(error);
+        errorToast(error?.response?.data?.error);
       } finally {
         setIsLoading(false);
       }
     },
   });
 
-  useEffect(() => {
-    const validEmail = getValidEmail();
-    if (validEmail && validEmail !== formik.values.email) {
-      formik.setFieldValue("email", validEmail);
-    }
-  }, [email, otpEmail]);
-
   const isFormValid = () => {
-    if (!isNewUser) {
+    if (!OTPVerified) {
       return otp.join("").length === 6;
     }
-
-    const passwordsMatch =
-      formik.values.password === formik.values.confirmPassword;
-    const passwordValid =
-      formik.values.password && formik.values.password.length >= 6;
-    const noErrors = !formik.errors.password && !formik.errors.confirmPassword;
-    return passwordsMatch && passwordValid && noErrors;
+    return (
+      formik.values.password &&
+      formik.values.confirmPassword &&
+      !Object.keys(formik.errors).length
+    );
   };
-
   return (
     <section className="sm:bg-white bg-[#f2f8ff] sm:h-full h-screen overflow-hidden">
       <Link to="/" className="absolute sm:hidden block left-3.5 top-3.5">
@@ -188,7 +129,7 @@ const ConfirmPasswordComponent = () => {
                 className="inline-block mx-1.5 max-w-4 h-auto"
                 alt="Infotech Houston"
               />{" "}
-              <b>Infotech Houston Solutions</b>
+              <b>Infotech Houston</b>
             </small>
           </footer>
         </div>
@@ -198,56 +139,35 @@ const ConfirmPasswordComponent = () => {
               Complete Your Account Setup
             </h1>
             <p className="sm:text-base text-sm mb-4">
-              {isNewUser
+              {OTPVerified
                 ? "Create a password to Get Started"
                 : "Enter the OTP sent to your email"}
             </p>
             <div className="border-[1px] border-[#e0e7ff] rounded-lg p-5">
               <form
-                onSubmit={(e) => {
-                  if (isNewUser) {
-                    e.preventDefault();
-                    formik.handleSubmit(e);
-                  } else {
-                    e.preventDefault();
-                  }
-                }}
+                onSubmit={
+                  OTPVerified ? formik.handleSubmit : (e) => e.preventDefault()
+                }
               >
-                {!isNewUser ? (
-                  <>
-                    <OTPInputComponent
-                      value={otp}
-                      handleChange={handleOtpChange}
-                      handleBlur={handleBlur}
-                      error={
-                        otp.join("").length < 6 && touched ? (
-                          <p className="mt-1 !text-sm !text-red-500">
-                            Invalid OTP
-                          </p>
-                        ) : (
-                          ""
-                        )
-                      }
-                      touched={touched}
-                    />
-                    <div className="flex items-center justify-between mt-4">
-                      <LoginButton
-                        type="button"
-                        onClick={verifyOtp}
-                        buttonText="Verify"
-                        disabled={!isFormValid()}
-                        isFormValid={isFormValid}
-                        isLoading={isLoading}
-                        className={
-                          !isFormValid()
-                            ? "bg-secondary-light disabled cursor-not-allowed"
-                            : "bg-secondary cursor-pointer"
-                        }
-                      />
-                      <ResendTimer />
-                    </div>
-                  </>
-                ) : (
+                {!OTPVerified && (
+                  <OTPInputComponent
+                    value={otp}
+                    handleChange={handleOtpChange}
+                    handleBlur={handleBlur}
+                    error={
+                      otp.join("").length < 6 ? (
+                        <p className="mt-1 !text-sm !text-red-500">
+                          Invalid OTP
+                        </p>
+                      ) : (
+                        ""
+                      )
+                    }
+                    touched={touched}
+                  />
+                )}
+
+                {OTPVerified && (
                   <>
                     <InputComponent
                       name="password"
@@ -271,41 +191,35 @@ const ConfirmPasswordComponent = () => {
                       touched={formik.touched.confirmPassword}
                       error={formik.errors.confirmPassword}
                     />
-
-                    <div className="flex items-center justify-between mt-4">
-                      {/* Regular submit button */}
-                      <LoginButton
-                        type="submit"
-                        buttonText="Submit"
-                        disabled={!isFormValid()}
-                        isFormValid={isFormValid}
-                        isLoading={isLoading}
-                        className={
-                          !isFormValid()
-                            ? "bg-secondary-light disabled cursor-not-allowed"
-                            : "bg-secondary cursor-pointer"
-                        }
-                      />
-                    </div>
                   </>
                 )}
+
+                <div className="flex items-center justify-between mt-4">
+                  <LoginButton
+                    type={OTPVerified ? "submit" : "button"}
+                    onClick={!OTPVerified ? verifyOtp : undefined}
+                    buttonText={OTPVerified ? "Submit" : "Verify"}
+                    disabled={!isFormValid()}
+                    isFormValid={isFormValid}
+                    isLoading={isLoading}
+                    className={
+                      !isFormValid()
+                        ? "bg-secondary-light disabled cursor-not-allowed"
+                        : "bg-secondary cursor-pointer"
+                    }
+                  />
+                  {!OTPVerified && (
+                    <div className="flex items-center justify-between mt-4">
+                      <ResendTimer />
+                    </div>
+                  )}
+                </div>
               </form>
             </div>
           </div>
         </div>
       </div>
-      {isOpen && <SuccessModal setIsOpen={setIsOpen} />}
     </section>
-  );
-};
-
-const ConfirmPassword = () => {
-  return (
-    <GoogleReCaptchaProvider
-      reCaptchaKey={import.meta.env.VITE_GOOGLE_CAPTCHA_SITE_KEY}
-    >
-      <ConfirmPasswordComponent />
-    </GoogleReCaptchaProvider>
   );
 };
 

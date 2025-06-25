@@ -57,6 +57,7 @@ const ForwardButton = ({ session }) => {
 
       // Initiate blind transfer
       await session.refer(target);
+      console.log("Blind transfer initiated successfully");
 
       // Close dialog and reset
       setShowTransferDialog(false);
@@ -67,6 +68,7 @@ const ForwardButton = ({ session }) => {
         try {
           // End your session after the blind transfer
           if (session && session.state !== SIP.SessionState.Terminated) {
+            console.log("Ending session after blind transfer");
             await session.bye();
           }
         } catch (byeError) {
@@ -87,6 +89,9 @@ const ForwardButton = ({ session }) => {
 
     try {
       setIsTransferring(true);
+
+      // First put the current call on hold
+      console.log("Putting first call on hold...");
       await session.invite({
         sessionDescriptionHandlerOptions: {
           constraints: {
@@ -96,6 +101,7 @@ const ForwardButton = ({ session }) => {
           hold: true,
         },
       });
+      console.log("First call is now on hold");
 
       // Create the SIP URI target
       let uriString;
@@ -130,8 +136,13 @@ const ForwardButton = ({ session }) => {
       audioElement.id = 'attended-transfer-audio';
       document.body.appendChild(audioElement);
 
+      // Configure media handling for the new session
       inviter.delegate = {
+        // Handle incoming tracks - critical for receiving audio
         onTrack: (track) => {
+          console.log("Track received:", track.kind);
+
+          // Create MediaStream from the received track
           if (track.kind === 'audio') {
             const stream = new MediaStream([track]);
             audioElement.srcObject = stream;
@@ -147,8 +158,13 @@ const ForwardButton = ({ session }) => {
         onSessionDescriptionHandler: (sdh) => {
           sdh.peerConnectionDelegate = {
             ontrack: (event) => {
+              console.log("Track added:", event.track.kind);
+
               if (event.track.kind === 'audio') {
+                // Create a stream from the track
                 const stream = new MediaStream([event.track]);
+
+                // Set the stream as the source for our audio element
                 audioElement.srcObject = stream;
                 audioElement.play()
                   .then(() => console.log("Audio playing"))
@@ -182,13 +198,21 @@ const ForwardButton = ({ session }) => {
 
       // Add state change listener
       inviter.stateChange.addListener((state) => {
+        console.log(`Attended transfer call state: ${state}`);
+
+        // When established, check if we have media
         if (state === SIP.SessionState.Established) {
+          // Check if we have audio tracks in the session
           const sdh = inviter.sessionDescriptionHandler;
           if (sdh && sdh.peerConnection) {
             const receivers = sdh.peerConnection.getReceivers();
+            console.log(`Found ${receivers.length} receivers`);
 
             receivers.forEach(receiver => {
               if (receiver.track && receiver.track.kind === 'audio') {
+                console.log("Found audio track:", receiver.track);
+
+                // Create a new stream with this track
                 const stream = new MediaStream([receiver.track]);
 
                 // Connect it to audio element
@@ -201,12 +225,19 @@ const ForwardButton = ({ session }) => {
           }
         }
       });
+
+      // Initiate the call
+      console.log("Initiating attended transfer call...");
       await inviter.invite(inviteOptions);
+      console.log("Connected to transfer target");
+
+      // Store the attended session
       setAttendedSession(inviter);
 
       // Clean up audio element when session ends
       inviter.stateChange.addListener((state) => {
         if (state === SIP.SessionState.Terminated) {
+          console.log("Attended call terminated, removing audio element");
           if (audioElement && audioElement.parentNode) {
             audioElement.srcObject = null;
             audioElement.parentNode.removeChild(audioElement);
@@ -236,6 +267,7 @@ const ForwardButton = ({ session }) => {
             hold: false,
           },
         });
+        console.log("Recovered original call from hold");
       } catch (holdError) {
         console.error("Failed to take call off hold after error:", holdError);
       }
@@ -250,11 +282,21 @@ const ForwardButton = ({ session }) => {
 
     try {
       setIsTransferring(true);
+
+      // Perform the attended transfer - this connects the original caller with the transfer target
       await session.refer(attendedSession);
+      console.log("Attended transfer completed successfully");
+
+      // End the attended call (your connection to the transfer target)
       await attendedSession.bye();
+      console.log("Ended connection to transfer target");
+
+      // Add a small delay before ending the original call
       setTimeout(async () => {
         try {
+          // Explicitly terminate the original session (your connection to the first caller)
           if (session && session.state !== SIP.SessionState.Terminated) {
+            console.log("Ending original call after successful transfer");
             await session.bye();
           }
         } catch (byeError) {
@@ -267,7 +309,8 @@ const ForwardButton = ({ session }) => {
       setShowTransferDialog(false);
       setTransferTarget("");
     } catch (error) {
-      console.error(`Failed to complete transfer: ${error.message}`);
+      console.error("Error completing attended transfer:", error);
+      alert(`Failed to complete transfer: ${error.message}`);
 
       // In case of failure, try to take the original call off hold
       try {
@@ -280,6 +323,7 @@ const ForwardButton = ({ session }) => {
             hold: false,
           },
         });
+        console.log("Took original call off hold after failed transfer");
       } catch (holdError) {
         console.error("Failed to take call off hold after error:", holdError);
       }
@@ -288,12 +332,16 @@ const ForwardButton = ({ session }) => {
     }
   };
 
+  // Cancel attended transfer
   const cancelAttendedTransfer = async () => {
     if (!attendedSession) return;
 
     try {
+      // End the attended call
       await attendedSession.bye();
+      console.log("Attended transfer cancelled");
 
+      // Take the original call off hold
       await session.invite({
         sessionDescriptionHandlerOptions: {
           constraints: {
@@ -303,6 +351,7 @@ const ForwardButton = ({ session }) => {
           hold: false,
         },
       });
+      console.log("Took original call off hold");
     } catch (error) {
       console.error("Error cancelling attended transfer:", error);
     } finally {

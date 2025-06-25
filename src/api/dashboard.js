@@ -6,6 +6,8 @@ export const getCompanyList = () =>
 export const getCallDetail = (
   startDate,
   endDate,
+  number,
+  numberTenant,
   tenant
 ) =>
   axiosSIP.get(
@@ -17,13 +19,14 @@ export const getCallDetail = (
 export const getUserCallDetail = (
   startDate,
   endDate,
+  numberTenant,
   number,
   tenant
 ) =>
   axiosSIP.get(
     `${endpoints.dashboard.getCallDetail}tenant=${tenant}&key=${
       import.meta.env.VITE_API_KEY
-    }&start=${startDate}&end=${endDate}&phone=${number}`
+    }&start=${startDate}&end=${endDate}&phone=${number},${numberTenant}`
   );
 
 export const updateCompanyPermission = (companyId, data) =>

@@ -42,6 +42,9 @@ const ConferenceButton = ({ session }) => {
 
     try {
       setIsConferencing(true);
+
+      // First put the current call on hold
+      console.log("Putting first call on hold...");
       await session.invite({
         sessionDescriptionHandlerOptions: {
           constraints: {
@@ -51,6 +54,7 @@ const ConferenceButton = ({ session }) => {
           hold: true,
         },
       });
+      console.log("First call is now on hold");
 
       // Create the SIP URI target
       let uriString;
@@ -76,19 +80,27 @@ const ConferenceButton = ({ session }) => {
         return;
       }
 
+      // Create new session for conference call
       const inviter = new SIP.Inviter(userAgentRef.current, target);
 
+      // Create a new audio element for this call to ensure audio output works
       const audioElement = document.createElement('audio');
       audioElement.autoplay = true;
       audioElement.id = 'conference-audio';
       document.body.appendChild(audioElement);
 
+      // Configure sessionDescriptionHandler to process remote tracks
       const delegate = {
         onSessionDescriptionHandler: (sdh) => {
           sdh.peerConnectionDelegate = {
             ontrack: (event) => {
+              console.log("Conference track added:", event.track.kind);
+
               if (event.track.kind === 'audio') {
+                // Create a stream from the track
                 const stream = new MediaStream([event.track]);
+
+                // Set the stream as the source for our audio element
                 audioElement.srcObject = stream;
                 audioElement.play()
                   .then(() => console.log("Conference audio playing"))
@@ -122,13 +134,24 @@ const ConferenceButton = ({ session }) => {
 
       // Add state change listener
       inviter.stateChange.addListener((state) => {
+        console.log(`Conference call state: ${state}`);
+
+        // When established, check if we have media
         if (state === SIP.SessionState.Established) {
+          // Check if we have audio tracks in the session
           const sdh = inviter.sessionDescriptionHandler;
           if (sdh && sdh.peerConnection) {
             const receivers = sdh.peerConnection.getReceivers();
+            console.log(`Found ${receivers.length} conference receivers`);
+
             receivers.forEach(receiver => {
               if (receiver.track && receiver.track.kind === 'audio') {
+                console.log("Found conference audio track:", receiver.track);
+
+                // Create a new stream with this track
                 const stream = new MediaStream([receiver.track]);
+
+                // Connect it to audio element
                 audioElement.srcObject = stream;
                 audioElement.play()
                   .then(() => console.log("Playing conference audio from receiver track"))
@@ -138,10 +161,19 @@ const ConferenceButton = ({ session }) => {
           }
         }
       });
+
+      // Initiate the call
+      console.log("Initiating conference call...");
       await inviter.invite(inviteOptions);
+      console.log("Connected to conference target");
+
+      // Store the conference session
       setConferenceSession(inviter);
+
+      // Clean up audio element when session ends
       inviter.stateChange.addListener((state) => {
         if (state === SIP.SessionState.Terminated) {
+          console.log("Conference call terminated, removing audio element");
           if (audioElement && audioElement.parentNode) {
             audioElement.srcObject = null;
             audioElement.parentNode.removeChild(audioElement);
@@ -150,6 +182,7 @@ const ConferenceButton = ({ session }) => {
       });
     } catch (error) {
       console.error("Error initiating conference call:", error);
+      alert(`Failed to start conference call: ${error.message}`);
       setConferenceSession(null);
 
       // Clean up audio element on error
@@ -170,6 +203,7 @@ const ConferenceButton = ({ session }) => {
             hold: false,
           },
         });
+        console.log("Recovered original call from hold");
       } catch (holdError) {
         console.error("Failed to take call off hold after error:", holdError);
       }
@@ -184,6 +218,8 @@ const ConferenceButton = ({ session }) => {
 
     try {
       setIsConferencing(true);
+
+      // Take the original call off hold (important for conference)
       await session.invite({
         sessionDescriptionHandlerOptions: {
           constraints: {
@@ -193,6 +229,11 @@ const ConferenceButton = ({ session }) => {
           hold: false,
         },
       });
+
+      // At this point, both calls are active - this creates a basic 3-way conference
+      // More sophisticated conference features would require a conference server/bridge
+
+      console.log("Both calls are now active - conference established");
 
       // Close dialog
       setShowConferenceDialog(false);
@@ -226,12 +267,20 @@ const ConferenceButton = ({ session }) => {
 
     try {
       setIsConferencing(true);
+
+      // End the conference session based on its state
       if (conferenceSession.state === SIP.SessionState.Established) {
+        // If call is established, use bye()
         await conferenceSession.bye();
+        console.log("Conference call ended with bye()");
       } else if (conferenceSession.state === SIP.SessionState.Establishing) {
+        // If call is still being established, use cancel()
         await conferenceSession.cancel();
+        console.log("Conference call cancelled");
       } else if (conferenceSession.state === SIP.SessionState.Initial) {
+        // If call is in initial state, use cancel() as well
         await conferenceSession.cancel();
+        console.log("Conference call cancelled in initial state");
       }
 
       // Clean up audio element
@@ -252,6 +301,7 @@ const ConferenceButton = ({ session }) => {
             hold: false,
           },
         });
+        console.log("Original call resumed");
       }
 
       // Reset state

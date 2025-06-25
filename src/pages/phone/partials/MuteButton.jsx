@@ -1,21 +1,21 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React from "react";
-import { useDispatch, useSelector } from "react-redux";
-import * as SIP from "sip.js";
-import unmuteIcon from "../../../assets/phone/microphone.svg";
 import muteIcon from "../../../assets/phone/muted.svg";
+import unmuteIcon from "../../../assets/phone/microphone.svg";
+import { useSelector, useDispatch } from "react-redux";
 import { setMuted } from "../../../store/slices/callFeatureSlice";
 import { updateLineState } from "../../../store/slices/sipSlice";
+import * as SIP from "sip.js";
 
-const MuteButton = ({ sessionRef,isPhoneModule=false }) => {
+const MuteButton = ({ sessionRef }) => {
+  const isMuted = useSelector((state) => state.callFeature.isMuted);
   const dispatch = useDispatch();
   
+  // Get the active line ID and line state from Redux
   const activeLineId = useSelector((state) => state.sip.activeLineId);
   const activeLine = useSelector((state) => 
     activeLineId !== null ? state.sip.lines[activeLineId] : null
   );
   const isLineMuted = activeLine?.muted || false;
-  const isLineOnHold = activeLine?.held || false;
 
   const session = sessionRef?.current;
   const pc = session?.sessionDescriptionHandler?.peerConnection;
@@ -23,29 +23,19 @@ const MuteButton = ({ sessionRef,isPhoneModule=false }) => {
     session &&
     session.state === SIP.SessionState.Established &&
     pc &&
-    pc.getSenders().find((s) => s.track?.kind === "audio") &&
-    !isLineOnHold;
-
-  const applyMuteState = (mutedState) => {
-    if (!pc) return;
-    const audioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
-    if (audioSender?.track) {
-      audioSender.track.enabled = !mutedState;
-    }
-  };
-  React.useEffect(() => {
-    if (session && pc && !isLineOnHold && isLineMuted) {
-      applyMuteState(true);
-    }
-  }, [isLineOnHold, session, pc, isLineMuted]);
-
+    pc.getSenders().find((s) => s.track?.kind === "audio");
   const handleToggleMute = () => {
     if (!canMute) return;
+    const audioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
+    if (audioSender?.track) {
+      audioSender.track.enabled = !isMuted;
+    }
     
-    const newMutedState = !isLineMuted;
-    applyMuteState(newMutedState);
+    // Update both Redux states for consistency
+    const newMutedState = !isMuted;
     dispatch(setMuted(newMutedState));
     
+    // Also update line-specific mute state if we have an active line
     if (activeLineId !== null) {
       dispatch(updateLineState({
         lineId: activeLineId,
@@ -53,14 +43,12 @@ const MuteButton = ({ sessionRef,isPhoneModule=false }) => {
       }));
     }
   };
-
-  const displayedMutedState = isLineMuted;
+    // Prefer line-specific mute state if available
+  const displayedMutedState = isLineMuted || isMuted;
   return (
     <button
       type="button"
-      className={`relative flex items-center justify-center ${
-        isPhoneModule ? "sm:w-15 sm:h-15 w-12 h-12" : "w-12 h-12"
-      } bg-[#aa93c752] rounded-full group`}
+      className="relative flex items-center justify-center w-16 h-16 bg-[#aa93c752] rounded-full group cursor-pointer"
       onClick={handleToggleMute}
       disabled={!canMute}
       title={!canMute ? "Mute unavailable until call is established" : ""}
@@ -69,9 +57,7 @@ const MuteButton = ({ sessionRef,isPhoneModule=false }) => {
       <img
         src={displayedMutedState ? muteIcon : unmuteIcon}
         alt={displayedMutedState ? "Muted" : "Unmuted"}
-        className={`${
-          isPhoneModule ? "sm:max-w-7 max-w-5" : "max-w-5"
-        } h-auto transition-transform duration-200 ease-linear group-hover:scale-[1.2]`}
+        className="max-w-7 h-auto transition-transform duration-200 ease-linear group-hover:scale-[1.2]"
       />
       <span className="absolute left-[-10] top-[-15px] -translate-y-1/2 ml-2 z-50 bg-[#67308F] !text-[#fff] text-xs rounded px-3 py-1 shadow-lg whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         {displayedMutedState ? "Unmute" : "Mute"}

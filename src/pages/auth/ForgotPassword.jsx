@@ -1,6 +1,6 @@
 import { useFormik } from "formik";
-import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useState } from "react";
+import { useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router";
 import { forgotPassword } from "../../api/authApi";
 import AuthImg from "../../assets/auth/auth.gif";
@@ -11,24 +11,11 @@ import { errorToast } from "../../components/common/ToastContainer";
 import { forgotValidationSchema } from "../../schemas/authSchema";
 import { setEmail, setUuid } from "../../store/slices/authSlice";
 import housetonLogo from "../../assets/houston.png";
-import {
-  GoogleReCaptchaProvider,
-  useGoogleReCaptcha,
-} from "react-google-recaptcha-v3";
-import { fetchIpAddress } from "../../store/slices/ipAddressSlice";
 
-const ForgotPasswordComponent = () => {
+const ForgotPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { executeRecaptcha } = useGoogleReCaptcha();
-  const { ip } = useSelector((state) => state.ipAddress);
-
-  useEffect(() => {
-    if (!ip) {
-      dispatch(fetchIpAddress());
-    }
-  }, [dispatch, ip]);
 
   const formik = useFormik({
     initialValues: {
@@ -38,21 +25,7 @@ const ForgotPasswordComponent = () => {
     onSubmit: async (values) => {
       setIsLoading(true);
       try {
-        if (!executeRecaptcha) {
-          console.warn("reCAPTCHA not yet available");
-          errorToast("Error verifying security check. Please try again.");
-          setIsLoading(false);
-          return;
-        }
-
-        const recaptchaToken = await executeRecaptcha("login");
-        let userIp = ip;
-        let payload = {
-          ...values,
-          recaptchaToken,
-          ipAddress: userIp,
-        };
-        const res = await forgotPassword(payload);
+        const res = await forgotPassword(values);
         dispatch(setUuid(res?.data?.uuid));
         dispatch(setEmail(values?.email));
         navigate("/confirm-password");
@@ -100,7 +73,7 @@ const ForgotPasswordComponent = () => {
                 className="inline-block mx-1.5 max-w-4 h-auto"
                 alt="Infotech Houston"
               />{" "}
-              <b>Infotech Houston Solutions</b>
+              <b>Infotech Houston</b>
             </small>
           </footer>
         </div>
@@ -146,16 +119,6 @@ const ForgotPasswordComponent = () => {
         </div>
       </div>
     </section>
-  );
-};
-
-const ForgotPassword = () => {
-  return (
-    <GoogleReCaptchaProvider
-      reCaptchaKey={import.meta.env.VITE_GOOGLE_CAPTCHA_SITE_KEY}
-    >
-      <ForgotPasswordComponent />
-    </GoogleReCaptchaProvider>
   );
 };
 

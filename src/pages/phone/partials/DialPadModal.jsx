@@ -1,115 +1,87 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import * as SIP from "sip.js";
+import React, { useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { SessionState } from "sip.js";
-import closeCallicon from "../../../assets/phone/hang_phone.svg";
-// import avtarIcon from "../../../assets/phone/profile-picture.png";
-import receiveCall from "../../../assets/phone/receivecall_green_new.svg";
-import useSipSession from "../../../hooks/useSipSession";
-import { formatDuration, formatUSAPhoneNumber, formatUSPhone, normalizePhoneNumber } from "../../../utils/common";
-import { CallSessionManager } from "../../../helpers/callSessionManager";
-import dialRemove from "../../../assets/dashboard/dialpad.png";
-import backIcon from "../../../assets/phone/back.svg";
-import forwordIcon from "../../../assets/phone/forward.svg";
-import mergeIcon from "../../../assets/phone/merge.svg";
-import transferIcon from "../../../assets/phone/transfer.svg";
-import forwordWhiteIcon from "../../../assets/phone/transfercall_white.svg";
-import userAvatar from "../../../assets/phone/user.svg";
-import confrenceIcon from "../../../assets/phone/users.svg";
-import { resetDialedPhone, setDialedPhone } from "../../../store/slices/callFeatureSlice";
+import closeCallicon from "../../../assets/phone/hang.png";
+import avtarIcon from "../../../assets/phone/profile-picture.png";
 import useSipAgentRef from "../../../hooks/useSipAgentRef";
-import MultiLineDisplay from "./MultiLineDisplay";
-import { CustomDropdown } from "../../../components/common/InputComponent";
-import { Link } from "react-router";
-import MuteButton from "./MuteButton";
+import useSipSession from "../../../hooks/useSipSession"; // Add this import
+import { formatDuration } from "../../../utils/common";
+import ForwardButton from "./ForwardButton";
 import HoldButton from "./HoldButton";
 import KeypadButton from "./KeypadButton";
+import MuteButton from "./MuteButton";
 import RecordButton from "./RecordButton";
 import SpeakerSelector from "./SpeakerSelector ";
 
-
-const dialPad = [
-  { value: "1", label: "1" },
-  { value: "2", label: "2 ABC" },
-  { value: "3", label: "3 DEF" },
-  { value: "4", label: "4 GHI" },
-  { value: "5", label: "5 JKL" },
-  { value: "6", label: "6 MNO" },
-  { value: "7", label: "7 PQRS" },
-  { value: "8", label: "8 TUV" },
-  { value: "9", label: "9 WXYZ" },
-  { value: "*", label: "*" },
-  { value: "0", label: "0" },
-  { value: "#", label: "#" },
-];
-
-const DialPadModal = () => {
-  const [phone, setPhone] = useState("");
-  const [showDTMF, setShowDTMF] = useState(false);
-  const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 767);
-  const audioRef = useRef(null);
-  const keypadBtnRef = useRef(null);
+const DialPadModal = ({
+  session,
+  sessionRef,
+  // audioRef,
+  handleEndCall,
+  performBlindTransfer,
+  startAttendedTransfer,
+  completeAttendedTransfer,
+  cancelAttendedTransfer,
+  // selectedNumber,
+  dialedPhone,
+}) => {
+  const { userAgent } = useSipSession();
   const { userAgentRef } = useSipAgentRef();
-  const callerID = useSelector((state) => state.auth?.user?.data?.response);
-  let callerIDArray = JSON.parse(callerID);
-  const defaultNumber = callerIDArray[0]?.split(" - ")[1]?.trim();
-  const [selectedNumber, setSelectedNumber] = useState(defaultNumber || "");
-  const duration = useSelector((state) => state.sip.callDuration);
-  const {
-    makeCall,
-    hangup,
-    sessionRef,
-    acceptCall,
-    handleIncomingSession,
-    switchToLine,
-    holdCall,
-    unholdCall,
-  } = useSipSession();
-  const dispatch = useDispatch();
-  const dialedPhone = useSelector((state) => state.callFeature.dialedPhone);
-  const incomingCall = useSelector((state) => state.sip.incomingCall);
-  const isRegistered = useSelector((state) => state.sip.isRegistered);
-  const callType = useSelector((state) => state.sip.callType);
-  const activeLineId = useSelector((state) => state.sip.activeLineId);
-  const lines = useSelector((state) => state.sip.lines);
-  const hasActiveLines = Object.keys(lines).length > 0;
 
-  const session = sessionRef?.current;
-  const pc = session?.sessionDescriptionHandler?.peerConnection;
-  const canMute =
-    session &&
-    session.state === SIP.SessionState.Established &&
-    pc &&
-    pc.getSenders().find((s) => s.track?.kind === "audio");
-
-  const [showConferenceDialog, setShowConferenceDialog] = useState(false);
-  const [conferenceTarget, setConferenceTarget] = useState("");
-  const [isConferencing, setIsConferencing] = useState(false);
-  const [conferenceSession, setConferenceSession] = useState(null);
-
-  const [showTransferDialog, setShowTransferDialog] = useState(false);
-  const [transferTarget, setTransferTarget] = useState("");
-  const [transferType, setTransferType] = useState("blind");
-  const [attendedSession, setAttendedSession] = useState(null);
-  const [isTransferring, setIsTransferring] = useState(false);
-  const canTransfer = session && session.state === SIP.SessionState.Established;
+  // Add this check
+  console.log("UserAgent in DialPadModal:", userAgent);
 
   const [dragPos, setDragPos] = useState({ x: 100, y: 100 });
   const [dragging, setDragging] = useState(false);
+  const [showDTMF, setShowDTMF] = useState(false);
+  const [conferenceNumber, setConferenceNumber] = useState("");
+  const [transferNumber, setTransferNumber] = useState("");
+  const [attendedStep, setAttendedStep] = useState(false);
+  const attendedSessionRef = useRef(null);
+  const keypadBtnRef = useRef(null);
+  const duration = useSelector((state) => state.sip.callDuration);
   const dragOffset = useRef({ x: 0, y: 0 });
+
+  //   dispatch(setDialPadModal(false));
+
+  // Handler to send DTMF tone
+  const handleSendDTMF = (tone) => {
+    const session = sessionRef?.current;
+    if (!session || !session.sessionDescriptionHandler) {
+      console.warn("Session or SDH is not available for DTMF.");
+      return;
+    }
+
+    try {
+      session.sessionDescriptionHandler.sendDtmf(tone);
+      console.log(`Sent DTMF tone: ${tone}`);
+    } catch (error) {
+      console.error("Error sending DTMF:", error);
+    }
+  };
+
+  // Handler to receive/accept incoming call
+  const handleReceiveCall = () => {
+    const sess = sessionRef.current;
+    if (
+      sess &&
+      typeof sess.accept === "function" &&
+      sess.state === SessionState.Initial
+    ) {
+      sess.accept();
+    }
+  };
 
   // Drag handlers for call window
   const handleDragStart = (e) => {
     setDragging(true);
     const clientX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
     const clientY = e.type === "touchstart" ? e.touches[0].clientY : e.clientY;
-    if (dragOffset && dragOffset.current) {
-      dragOffset.current = {
-        x: clientX - dragPos.x,
-        y: clientY - dragPos.y,
-      };
-    }
+    dragOffset.current = {
+      x: clientX - dragPos.x,
+      y: clientY - dragPos.y,
+    };
     document.body.style.userSelect = "none";
   };
 
@@ -117,12 +89,10 @@ const DialPadModal = () => {
     if (!dragging) return;
     const clientX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
     const clientY = e.type === "touchmove" ? e.touches[0].clientY : e.clientY;
-    if (dragOffset && dragOffset.current) {
-      setDragPos({
-        x: clientX - dragOffset.current.x,
-        y: clientY - dragOffset.current.y,
-      });
-    }
+    setDragPos({
+      x: clientX - dragOffset.current.x,
+      y: clientY - dragOffset.current.y,
+    });
   };
 
   const handleDragEnd = () => {
@@ -151,1183 +121,44 @@ const DialPadModal = () => {
     };
   }, [dragging]);
 
-
-
-  const handleSelectChange = (e) => {
-      if (e && e.target && e.target.value) {
-        setSelectedNumber(e.target.value);
-      }
-    };
-    const handleDial = (val) => {
-      setPhone((prev) => {
-        const next = (prev || "") + val;
-        if (next.includes("*") || next.includes("#")) {
-          return next.slice(0, 16);
-        }
-        return next.slice(0, 10);
-      });
-    };
-  
-    const handleBackspace = () => {
-      setPhone((prev) => prev?.slice(0, -1));
-    };
-    const handleInputChange = (e) => {
-      let value = e.target.value.replace(/[^0-9*#]/g, "");
-      if (value.includes("*") || value.includes("#")) {
-        value = value.slice(0, 16);
-      } else {
-        value = value.slice(0, 10);
-      }
-      setPhone(value);
-    };
-    // Add this function to your PhoneComponent
-  
-    const handleBlur = () => {
-      setPhone(normalizePhoneNumber(phone));
-    };
-  
-    let numberToCall = normalizePhoneNumber(selectedNumber);
-    // let normalizedPhone = normalizePhoneNumber(phone);
-  
-    const handleCall = () => {
-      const hasActiveCallThatWillBeHeld =
-        activeLineId !== null &&
-        lines[activeLineId] &&
-        !lines[activeLineId].onHold &&
-        !lines[activeLineId].ringing;
-      const lineId = makeCall({
-        phone: phone,
-        selectedNumber: numberToCall,
-      });
-  
-      setPhone("");
-  
-      if (lineId) {
-        dispatch(setDialedPhone(phone));
-        if (hasActiveCallThatWillBeHeld) {
-          console.log(
-            `Previous call on line ${activeLineId} was automatically put on hold`
-          );
-        }
-      } else {
-        console.warn("Could not make call - all lines may be in use");
-      }
-    };
-  
-    // Add resize listener
-    useEffect(() => {
-      const handleResize = () => {
-        setIsMobileView(window.innerWidth <= 767);
-      };
-      handleResize();
-  
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }, []);
-  
-    const handleHangup = () => {
-      try {
-        if (incomingCall) {
-          console.log(`Rejecting incoming call from ${incomingCall.caller}`);
-          hangup();
-        } else if (activeLineId !== null) {
-          console.log(`Hanging up active line: ${activeLineId}`);
-          hangup(activeLineId);
-        } else if (sessionRef.current) {
-          console.log("Hanging up using main hangup function with no line ID");
-          hangup();
-        } else {
-          console.log("No active session or incoming call to hang up");
-          return;
-        }
-        dispatch(resetDialedPhone());
-        setShowTransferDialog(false);
-        setShowConferenceDialog(false);
-        setShowDTMF(false);
-        setPhone("");
-      } catch (err) {
-        console.error("Error during hangup:", err);
-      }
-    };
-  
-    const toggleDialog = (dialogType) => {
-      if (dialogType === "transfer") {
-        // If transfer dialog is already open, close it
-        if (showTransferDialog) {
-          setShowTransferDialog(false);
-          setTransferTarget("");
-          if (attendedSession) {
-            cancelAttendedTransfer();
-          }
-        } else {
-          // Close conference dialog if open
-          if (showConferenceDialog) {
-            setShowConferenceDialog(false);
-            setConferenceTarget("");
-            if (conferenceSession) {
-              endConferenceCall();
-            }
-          }
-          // Open transfer dialog
-          setShowTransferDialog(true);
-        }
-      } else if (dialogType === "conference") {
-        // If conference dialog is already open, close it
-        if (showConferenceDialog) {
-          setShowConferenceDialog(false);
-          setConferenceTarget("");
-        } else {
-          // Close transfer dialog if open
-          if (showTransferDialog) {
-            setShowTransferDialog(false);
-            setTransferTarget("");
-            if (attendedSession) {
-              cancelAttendedTransfer();
-            }
-          }
-          // Open conference dialog
-          setShowConferenceDialog(true);
-        }
-      }
-    };
-  
-    const handleSendDTMF = (tone) => {
-      const session = sessionRef.current;
-      if (!session || !session.sessionDescriptionHandler) return;
-  
-      try {
-        session.sessionDescriptionHandler.sendDtmf(tone);
-      } catch (error) {
-        console.error("Error sending DTMF:", error);
-      }
-    };
-  
-    useEffect(() => {
-      if (!sessionRef.current) {
-        setPhone("");
-        dispatch(resetDialedPhone());
-      }
-    }, [sessionRef.current, dispatch]);
-  
-    const canConference =
-      session && session.state === SIP.SessionState.Established;
-  
-    useEffect(() => {
-      if (!canConference) {
-        setConferenceSession(null);
-        setIsConferencing(false);
-      }
-    }, [canConference]);
-  
-    useEffect(() => {
-      return () => {
-        if (
-          conferenceSession &&
-          conferenceSession.state !== SIP.SessionState.Terminated
-        ) {
-          try {
-            conferenceSession.bye();
-          } catch (e) {
-            console.error("Error cleaning up conference session:", e);
-          }
-        }
-      };
-    }, [conferenceSession]);
-  
-    const initiateConferenceCall = async () => {
-      if (!canConference || !conferenceTarget || !userAgentRef.current) return;
-  
-      try {
-        setIsConferencing(true);
-        await session.invite({
-          sessionDescriptionHandlerOptions: {
-            constraints: {
-              audio: true,
-              video: false,
-            },
-            hold: true,
-          },
-        });
-  
-        let uriString;
-        if (conferenceTarget.includes("@")) {
-          uriString = `sip:${conferenceTarget}`;
-        } else {
-          const domain = userAgentRef.current?.configuration?.uri?.host;
-          if (!domain) {
-            setIsConferencing(false);
-            return;
-          }
-          uriString = `sip:${conferenceTarget}@${domain}`;
-        }
-  
-        const target = SIP.UserAgent.makeURI(uriString);
-        if (!target) {
-          setIsConferencing(false);
-          return;
-        }
-        const inviter = new SIP.Inviter(userAgentRef.current, target);
-        const audioElement = document.createElement("audio");
-        audioElement.autoplay = true;
-        audioElement.id = "conference-audio";
-        document.body.appendChild(audioElement);
-        const delegate = {
-          onSessionDescriptionHandler: (sdh) => {
-            sdh.peerConnectionDelegate = {
-              ontrack: (event) => {
-                if (event.track.kind === "audio") {
-                  const stream = new MediaStream([event.track]);
-                  audioElement.srcObject = stream;
-                  audioElement
-                    .play()
-                    .then(() => console.log("Conference audio playing"))
-                    .catch((err) =>
-                      console.error("Failed to play conference audio:", err)
-                    );
-                }
-              },
-            };
-          },
-        };
-  
-        inviter.delegate = delegate;
-        const inviteOptions = {
-          sessionDescriptionHandlerOptions: {
-            constraints: {
-              audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
-              },
-              video: false,
-            },
-            offerOptions: {
-              offerToReceiveAudio: true,
-              offerToReceiveVideo: false,
-            },
-          },
-        };
-  
-        inviter.stateChange.addListener((state) => {
-          if (state === SIP.SessionState.Established) {
-            const sdh = inviter.sessionDescriptionHandler;
-            if (sdh && sdh.peerConnection) {
-              const receivers = sdh.peerConnection.getReceivers();
-  
-              receivers.forEach((receiver) => {
-                if (receiver.track && receiver.track.kind === "audio") {
-                  const stream = new MediaStream([receiver.track]);
-                  audioElement.srcObject = stream;
-                  audioElement
-                    .play()
-                    .then(() =>
-                      console.log("Playing conference audio from receiver track")
-                    )
-                    .catch((err) =>
-                      console.error("Error playing conference audio:", err)
-                    );
-                }
-              });
-            }
-          }
-        });
-  
-        await inviter.invite(inviteOptions);
-        setConferenceSession(inviter);
-  
-        inviter.stateChange.addListener((state) => {
-          if (state === SIP.SessionState.Terminated) {
-            if (audioElement && audioElement.parentNode) {
-              audioElement.srcObject = null;
-              audioElement.parentNode.removeChild(audioElement);
-            }
-          }
-        });
-      } catch (error) {
-        console.error("Error initiating conference call:", error);
-        setConferenceSession(null);
-  
-        const audioElement = document.getElementById("conference-audio");
-        if (audioElement && audioElement.parentNode) {
-          audioElement.srcObject = null;
-          audioElement.parentNode.removeChild(audioElement);
-        }
-  
-        try {
-          await session.invite({
-            sessionDescriptionHandlerOptions: {
-              constraints: {
-                audio: true,
-                video: false,
-              },
-              hold: false,
-            },
-          });
-        } catch (holdError) {
-          console.error("Failed to take call off hold after error:", holdError);
-        }
-      } finally {
-        setIsConferencing(false);
-      }
-    };
-  
-    // Join calls into conference
-    const mergeCallsIntoConference = async () => {
-      if (!canConference || !conferenceSession) return;
-  
-      try {
-        setIsConferencing(true);
-        await session.invite({
-          sessionDescriptionHandlerOptions: {
-            constraints: {
-              audio: true,
-              video: false,
-            },
-            hold: false,
-          },
-        });
-  
-        // Close dialog
-        setShowConferenceDialog(false);
-      } catch (error) {
-        console.error("Error creating conference:", error);
-  
-        // Try to recover the calls
-        try {
-          // Make sure original call is active
-          await session.invite({
-            sessionDescriptionHandlerOptions: {
-              constraints: {
-                audio: true,
-                video: false,
-              },
-              hold: false,
-            },
-          });
-        } catch (recoverError) {
-          console.error("Failed to recover calls:", recoverError);
-        }
-      } finally {
-        setIsConferencing(false);
-      }
-    };
-  
-    const endConferenceCall = async () => {
-      if (!conferenceSession) return;
-      try {
-        setIsConferencing(true);
-        if (conferenceSession.state === SIP.SessionState.Established) {
-          await conferenceSession.bye();
-        } else if (conferenceSession.state === SIP.SessionState.Establishing) {
-          await conferenceSession.cancel();
-        } else if (conferenceSession.state === SIP.SessionState.Initial) {
-          await conferenceSession.cancel();
-        }
-  
-        // Clean up audio element
-        const audioElement = document.getElementById("conference-audio");
-        if (audioElement && audioElement.parentNode) {
-          audioElement.srcObject = null;
-          audioElement.parentNode.removeChild(audioElement);
-        }
-  
-        // Make sure the original call is still active
-        if (session && session.state === SIP.SessionState.Established) {
-          await session.invite({
-            sessionDescriptionHandlerOptions: {
-              constraints: {
-                audio: true,
-                video: false,
-              },
-              hold: false,
-            },
-          });
-        }
-  
-        // Reset state
-        setConferenceSession(null);
-        setShowConferenceDialog(false);
-        setConferenceTarget("");
-      } catch (error) {
-        console.error("Error:", error);
-  
-        // Still try to clean up and reset state even if there was an error
-        const audioElement = document.getElementById("conference-audio");
-        if (audioElement && audioElement.parentNode) {
-          audioElement.srcObject = null;
-          audioElement.parentNode.removeChild(audioElement);
-        }
-  
-        setConferenceSession(null);
-        setShowConferenceDialog(false);
-      } finally {
-        setIsConferencing(false);
-      }
-    };
-  
-    // Transfer calls logic
-    useEffect(() => {
-      if (!canTransfer) {
-        setAttendedSession(null);
-        setIsTransferring(false);
-      }
-    }, [canTransfer]);
-  
-    // Handle blind transfer
-    const handleBlindTransfer = async () => {
-      if (!canTransfer || !transferTarget || !userAgentRef.current) return;
-  
-      try {
-        setIsTransferring(true);
-  
-        // Create the SIP URI target
-        let uriString;
-        if (transferTarget.includes("@")) {
-          uriString = `sip:${transferTarget}`;
-        } else {
-          // Get domain from userAgentRef
-          const domain = userAgentRef.current?.configuration?.uri?.host;
-          if (!domain) {
-            setIsTransferring(false);
-            return;
-          }
-          uriString = `sip:${transferTarget}@${domain}`;
-        }
-  
-        // Use SIP.UserAgent.makeURI instead of userAgentRef.current.makeURI
-        const target = SIP.UserAgent.makeURI(uriString);
-        if (!target) {
-          setIsTransferring(false);
-          return;
-        }
-  
-        // Initiate blind transfer
-        await session.refer(target);
-  
-        setShowTransferDialog(false);
-        setTransferTarget("");
-  
-        setTimeout(async () => {
-          try {
-            if (session && session.state !== SIP.SessionState.Terminated) {
-              await session.bye();
-            }
-          } catch (byeError) {
-            console.error("Error ending session after blind transfer:", byeError);
-          }
-        }, 500);
-      } catch (error) {
-        console.error("Error in blind transfer:", error);
-      } finally {
-        setIsTransferring(false);
-      }
-    };
-  
-    // Start attended transfer
-    const initiateAttendedTransfer = async () => {
-      if (!canTransfer || !transferTarget || !userAgentRef.current) return;
-  
-      try {
-        setIsTransferring(true);
-        await session.invite({
-          sessionDescriptionHandlerOptions: {
-            constraints: {
-              audio: true,
-              video: false,
-            },
-            hold: true,
-          },
-        });
-        let uriString;
-        if (transferTarget.includes("@")) {
-          uriString = `sip:${transferTarget}`;
-        } else {
-          const domain = userAgentRef.current?.configuration?.uri?.host;
-          if (!domain) {
-            setIsTransferring(false);
-            return;
-          }
-          uriString = `sip:${transferTarget}@${domain}`;
-        }
-  
-        const target = SIP.UserAgent.makeURI(uriString);
-        if (!target) {
-          setIsTransferring(false);
-          return;
-        }
-  
-        const inviter = new SIP.Inviter(userAgentRef.current, target);
-        const audioElement = document.createElement("audio");
-        audioElement.autoplay = true;
-        audioElement.id = "attended-transfer-audio";
-        document.body.appendChild(audioElement);
-  
-        inviter.delegate = {
-          onTrack: (track) => {
-            if (track.kind === "audio") {
-              const stream = new MediaStream([track]);
-              audioElement.srcObject = stream;
-              audioElement
-                .play()
-                .then(() => console.log("Audio playing successfully"))
-                .catch((err) => console.error("Error playing audio:", err));
-            }
-          },
-        };
-  
-        const delegate = {
-          onSessionDescriptionHandler: (sdh) => {
-            sdh.peerConnectionDelegate = {
-              ontrack: (event) => {
-                if (event.track.kind === "audio") {
-                  const stream = new MediaStream([event.track]);
-                  audioElement.srcObject = stream;
-                  audioElement
-                    .play()
-                    .then(() => console.log("Audio playing"))
-                    .catch((err) => console.error("Failed to play:", err));
-                }
-              },
-            };
-          },
-        };
-  
-        inviter.delegate = delegate;
-  
-        const inviteOptions = {
-          sessionDescriptionHandlerOptions: {
-            constraints: {
-              audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
-              },
-              video: false,
-            },
-            offerOptions: {
-              offerToReceiveAudio: true,
-              offerToReceiveVideo: false,
-            },
-          },
-        };
-  
-        inviter.stateChange.addListener((state) => {
-          if (state === SIP.SessionState.Established) {
-            const sdh = inviter.sessionDescriptionHandler;
-            if (sdh && sdh.peerConnection) {
-              const receivers = sdh.peerConnection.getReceivers();
-  
-              receivers.forEach((receiver) => {
-                if (receiver.track && receiver.track.kind === "audio") {
-                  const stream = new MediaStream([receiver.track]);
-                  audioElement.srcObject = stream;
-                  audioElement
-                    .play()
-                    .then(() => console.log("Playing audio from receiver track"))
-                    .catch((err) => console.error("Error playing audio:", err));
-                }
-              });
-            }
-          }
-        });
-  
-        await inviter.invite(inviteOptions);
-        setAttendedSession(inviter);
-        inviter.stateChange.addListener((state) => {
-          if (state === SIP.SessionState.Terminated) {
-            if (audioElement && audioElement.parentNode) {
-              audioElement.srcObject = null;
-              audioElement.parentNode.removeChild(audioElement);
-            }
-          }
-        });
-      } catch (error) {
-        console.error(error);
-        setAttendedSession(null);
-  
-        const audioElement = document.getElementById("attended-transfer-audio");
-        if (audioElement && audioElement.parentNode) {
-          audioElement.srcObject = null;
-          audioElement.parentNode.removeChild(audioElement);
-        }
-  
-        try {
-          await session.invite({
-            sessionDescriptionHandlerOptions: {
-              constraints: {
-                audio: true,
-                video: false,
-              },
-              hold: false,
-            },
-          });
-        } catch (holdError) {
-          console.error("Failed to take call off hold after error:", holdError);
-        }
-      } finally {
-        setIsTransferring(false);
-      }
-    };
-  
-    const completeAttendedTransfer = async () => {
-      if (!canTransfer || !attendedSession) return;
-  
-      try {
-        setIsTransferring(true);
-        await session.refer(attendedSession);
-        await attendedSession.bye();
-        setTimeout(async () => {
-          try {
-            if (session && session.state !== SIP.SessionState.Terminated) {
-              await session.bye();
-            }
-          } catch (byeError) {
-            console.error("Error ending original call:", byeError);
-          }
-        }, 500);
-  
-        // Reset state
-        setAttendedSession(null);
-        setShowTransferDialog(false);
-        setTransferTarget("");
-      } catch (error) {
-        console.error("Error", error);
-  
-        try {
-          await session.invite({
-            sessionDescriptionHandlerOptions: {
-              constraints: {
-                audio: true,
-                video: false,
-              },
-              hold: false,
-            },
-          });
-        } catch (holdError) {
-          console.error(holdError);
-        }
-      } finally {
-        setIsTransferring(false);
-      }
-    };
-  
-    // Cancel attended transfer
-    const cancelAttendedTransfer = async () => {
-      if (!attendedSession) return;
-  
-      try {
-        await attendedSession.bye();
-        await session.invite({
-          sessionDescriptionHandlerOptions: {
-            constraints: {
-              audio: true,
-              video: false,
-            },
-            hold: false,
-          },
-        });
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setAttendedSession(null);
-      }
-    };
-  
-    useEffect(() => {
-      if (!userAgentRef.current) return;
-      userAgentRef.current.delegate = {
-        onInvite: (incomingSession) => {
-          handleIncomingSession(incomingSession);
-        },
-      };
-    }, []);
-
-
-
-      const renderDialPad = () => (
-    <div
-      className={`relative flex flex-col w-full ${
-        !isMobileView ? "max-w-[400px]" : ""
-      } justify-end bg-white p-5 pt-8 ${
-        !isMobileView ? "border-r-[1px] border-gray-200" : ""
-      }`}
-    >
-      <div
-        className={`${
-          Object.keys(lines).length > 1
-            ? "max-h-[calc(100vh-220px)]"
-            : "max-h-full"
-        } overflow-y-auto`}
-      >
-        {hasActiveLines && Object.keys(lines).length > 1 && (
-          <MultiLineDisplay
-            switchToLine={switchToLine}
-            hangup={hangup}
-            holdCall={holdCall}
-            unholdCall={unholdCall}
-            acceptCall={acceptCall}
-          />
-        )}
-        <div className="relative 2xl:mb-10 mb-5 bg-white z-10 flex flex-col w-full items-start">
-          <h5 className="text-sm text-left font-semibold text-primary block mb-2.5">
-            Caller ID
-          </h5>
-          <CustomDropdown
-            name="callerId"
-            label=""
-            options={
-              Array.isArray(callerIDArray)
-                ? callerIDArray?.map((entry) => {
-                    const name = entry.split(" - ")[0]?.trim();
-                    const number = entry.split(" - ")[1]?.trim();
-                    return {
-                      label: name ? `${name} - ${formatUSPhone(number)}` : formatUSPhone(number),
-                      value: number,
-                    };
-                  })
-                : []
-            }
-            value={
-              Array.isArray(callerIDArray)
-                ? callerIDArray
-                    .map((entry) => {
-                      const name = entry.split(" - ")[0]?.trim();
-                      const number = entry.split(" - ")[1]?.trim();
-                      return {
-                        label: name ? `${name} - ${formatUSPhone(number)}` : formatUSPhone(number),
-                        value: number,
-                      };
-                    })
-                    .find((opt) => opt.value === selectedNumber) || ""
-                : ""
-            }
-            onChange={handleSelectChange}
-            customClass="w-full max-w-full"
-          />
-        </div>
-        <div className="relative block w-full mb-4">
-          <input
-            type="text"
-            value={formatUSAPhoneNumber(phone)}
-            placeholder="Phone Number"
-            onChange={handleInputChange}
-            onBlur={handleBlur}
-            className="w-full h-11 px-4 py-2 border-[1px] border-[#ebe6e7] text-primary rounded-lg text-base text-center"
-          />
-          <button
-            onClick={handleBackspace}
-            className="absolute top-1 right-2 cursor-pointer"
-          >
-            <img src={dialRemove} alt="" />
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-3 mb-4 dialpad">
-          {dialPad.map((btn, idx) => (
-            <button
-              key={idx}
-              className="bg-gray-100 hover:bg-secondary rounded-lg py-1.5 2xl:py- cursor-pointer text-xl font-bold flex flex-col items-center justify-center transition-colors group"
-              onClick={() => handleDial(btn.value)}
-              type="button"
-            >
-              <span className="text-black !group-hover:text-white transition-colors">
-                {btn.value}
-              </span>
-              <span className="text-xs font-normal text-black group-hover:text-white transition-colors">
-                {btn.label && btn.value
-                  ? btn.label.replace(btn.value, "").trim()
-                  : btn.label || ""}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="flex justify-center items-center gap-3">
-          <button
-            className={`flex justify-center items-center bg-white rounded-full w-14 h-14 cursor-pointer  ${
-              phone && isRegistered ? "opacity-100" : "opacity-50"
-            }`}
-            onClick={handleCall}
-            disabled={!(phone && isRegistered)}
-          >
-            <img src={receiveCall} alt="" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Add a shared renderCallScreen function
-  const renderCallScreen = () => (
-    <div className="relative flex-1 flex flex-col justify-center items-center p-5">
-      {isMobileView && hasActiveLines && Object.keys(lines).length > 1 && (
-        <MultiLineDisplay
-          switchToLine={switchToLine}
-          hangup={hangup}
-          holdCall={holdCall}
-          unholdCall={unholdCall}
-          acceptCall={acceptCall}
-        />
-      )}
-      <div
-        className={"w-20 h-20 mb-4 rounded-full bg-gray-100 flex items-center justify-center"}
-      >
-        <img src={userAvatar} alt="User Avatar" className="w-18 h-18 p-4" />
-      </div>
-
-      <div className="text-center mb-10">
-        {!hasActiveLines && !canMute ? (
-          <h5
-            className={`${isMobileView ? "text-lg" : "text-xl"} font-semibold`}
-          >
-            No Active Call
-          </h5>
-        ) : (
-          <>
-            {(() => {
-              const effectiveLineId =
-                activeLineId > 1 ? String(activeLineId) : "1";
-              const activeLine = lines[effectiveLineId];
-              return (
-                activeLine && (
-                  <>
-                    <h5
-                      className={`${
-                        isMobileView ? "text-lg" : "text-xl"
-                      } font-semibold`}
-                    >
-                      {activeLine.displayName || `Line ${effectiveLineId}`}
-                    </h5>
-                    <h5
-                      className={`${
-                        isMobileView ? "text-lg" : "text-xl"
-                      } font-semibold`}
-                    >
-                      {formatUSPhone(activeLine.phone || dialedPhone)}
-                    </h5>
-                  </>
-                )
-              );
-            })()}
-
-            <p className="mt-2 text-base !text-secondary">
-              {duration > 0
-                ? formatDuration(duration || 0)
-                : incomingCall.displayName
-                ? "Incoming..."
-                : "Calling..."}
-            </p>
-          </>
-        )}
-      </div>
-      {showConferenceDialog && (
-        <div className="flex items-center justify-center w-full">
-          <div className="bg-white w-full flex items-center gap-2.5 max-w-[400px] mb-8">
-            {!conferenceSession ? (
-              <>
-                <input
-                  type="text"
-                  value={conferenceTarget}
-                  onChange={(e) => setConferenceTarget(e.target.value)}
-                  placeholder="Add Participant SIP Address"
-                  className="w-full max-w-[270px] h-10 px-4 py-2 border-[1px] border-[#ebe6e7] text-primary rounded-lg text-base text-center"
-                  disabled={isConferencing}
-                />
-
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setShowConferenceDialog(false)}
-                    disabled={isConferencing}
-                  >
-                    <img src={backIcon} className="w-10 h-10" alt="" />
-                  </button>
-                  <button
-                    onClick={initiateConferenceCall}
-                    disabled={!conferenceTarget || isConferencing}
-                  >
-                    <img src={receiveCall} className="w-10 h-10" alt="" />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="text-center block w-full">
-                <h5 className="text-xs">Participant connected.</h5>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      {showTransferDialog && (
-        <div className="flex flex-col items-center justify-center mb-10">
-          <h3 className="text-lg font-medium mb-3">Transfer Type</h3>
-          <div className="flex gap-4">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="blind"
-                checked={transferType === "blind"}
-                onChange={() => setTransferType("blind")}
-                className="mr-1 text-sm"
-                disabled={isTransferring}
-              />
-              Blind
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="attended"
-                checked={transferType === "attended"}
-                onChange={() => setTransferType("attended")}
-                className="mr-1 text-sm"
-                disabled={isTransferring}
-              />
-              Attended
-            </label>
-          </div>
-
-          <div className="flex items-center justify-center gap-2 mt-4">
-            {!attendedSession && (
-              <input
-                type="text"
-                value={transferTarget}
-                onChange={(e) => setTransferTarget(e.target.value)}
-                placeholder="Transfer Target SIP"
-                className="w-full text-sm max-w-[200px] p-2 border border-gray-200 rounded"
-                disabled={isTransferring || attendedSession}
-              />
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowTransferDialog(false);
-                  setTransferTarget("");
-                  if (attendedSession) {
-                    cancelAttendedTransfer();
-                  }
-                }}
-                disabled={isTransferring}
-              >
-                <img src={backIcon} className="w-10 h-10" alt="" />
-              </button>
-
-              {transferType === "blind" ? (
-                <button
-                  className="w-10 h-10 flex items-center justify-center bg-secondary rounded-full"
-                  onClick={handleBlindTransfer}
-                  disabled={!transferTarget || isTransferring}
-                >
-                  <img src={forwordWhiteIcon} className="w-5" alt="" />
-                </button>
-              ) : attendedSession ? (
-                <button
-                  className="w-10 h-10 flex items-center justify-center bg-secondary rounded-full"
-                  onClick={completeAttendedTransfer}
-                  disabled={isTransferring}
-                >
-                  <img src={transferIcon} className="w-5" alt="" />
-                </button>
-              ) : (
-                <button
-                  onClick={initiateAttendedTransfer}
-                  disabled={!transferTarget || isTransferring}
-                >
-                  <img src={receiveCall} className="w-10 h-10" alt="" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-   
-      <div className="flex flex-col justify-center items-center gap-3">
-        <ul className="relative flex justify-center items-center gap-3 mb-4">
-          {callType === "incoming" && Object.entries(lines)?.length == 1 && (
-            <li>
-              <Link to="#" onClick={acceptCall} title="Accept Call">
-                <img
-                  src={receiveCall}
-                  className="w-12 h-12"
-                  alt="Accept call"
-                />
-              </Link>
-            </li>
-          )}
-
-          {showConferenceDialog && conferenceSession && (
-            <button
-              type="button"
-              className="relative flex items-center justify-center w-16 h-16 bg-[#aa93c752] rounded-full group"
-              onClick={mergeCallsIntoConference}
-              disabled={isConferencing}
-              title={
-                !canConference
-                  ? "Conference unavailable until call is established"
-                  : ""
-              }
-              style={{ opacity: canConference ? 1 : 0.5 }}
-            >
-              <img
-                src={mergeIcon}
-                alt=""
-                className="max-w-7 h-auto transition-transform duration-200 ease-linear group-hover:scale-[1.2]"
-              />
-              <span className="absolute left-[-10] top-[-15px] -translate-y-1/2 ml-2 z-50 bg-[#67308F] !text-[#fff] text-xs rounded px-3 py-1 shadow-lg whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                Merge Calls
-              </span>
-            </button>
-          )}
-          {hasActiveLines && canMute && (
-            <>
-              <li>
-                <MuteButton sessionRef={sessionRef} />
-              </li>
-              <li>
-                <HoldButton sessionRef={sessionRef} />
-              </li>
-            </>
-          )}
-          <li>
-            {showConferenceDialog && conferenceSession ? (
-              <Link to="#" onClick={endConferenceCall} className="relative">
-                <img src={closeCallicon} className="w-12 h-12" alt="" />
-                <span className="absolute left-[-10] top-[-15px] -translate-y-1/2 ml-2 z-50 bg-[#67308F] !text-[#fff] text-xs rounded px-3 py-1 shadow-lg whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  Merge Calls
-                </span>
-              </Link>
-            ) : (
-              <Link to="#" onClick={handleHangup}>
-                <img src={closeCallicon} className="w-12 h-12" alt="" />
-              </Link>
-            )}
-          </li>
-        </ul>
-        {hasActiveLines && canMute && (
-          <ul className="flex justify-center items-center gap-3">
-            <li style={{ position: "relative" }}>
-              <span ref={keypadBtnRef}>
-                <KeypadButton
-                  sessionRef={sessionRef}
-                  setShowDTMF={setShowDTMF}
-                  handleSendDTMF={handleSendDTMF}
-                  showDTMF={showDTMF}
-                />
-              </span>
-            </li>
-            <li>
-              <RecordButton sessionRef={sessionRef} />
-            </li>
-            <li>
-              <button
-                type="button"
-                className="relative flex items-center justify-center w-12 h-12 bg-[#aa93c752] rounded-full group"
-                onClick={() => toggleDialog("conference")}
-                disabled={!canConference}
-                title={
-                  !canConference
-                    ? "Conference unavailable until call is established"
-                    : ""
-                }
-                style={{ opacity: canConference ? 1 : 0.5 }}
-              >
-                <img
-                  src={confrenceIcon}
-                  alt=""
-                  className="max-w-5 h-auto transition-transform duration-200 ease-linear group-hover:scale-[1.2]"
-                />
-                <span className="absolute left-[-10] top-[-15px] -translate-y-1/2 ml-2 z-50 bg-[#67308F] !text-[#fff] text-xs rounded px-3 py-1 shadow-lg whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  Conference
-                </span>
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className="relative flex items-center justify-center w-12 h-12 bg-[#aa93c752] rounded-full group"
-                onClick={() => toggleDialog("transfer")}
-                disabled={!canTransfer}
-                title={
-                  !canTransfer
-                    ? "Transfer unavailable until call is established"
-                    : ""
-                }
-                style={{ opacity: canTransfer ? 1 : 0.5 }}
-              >
-                <img
-                  src={forwordIcon}
-                  alt=""
-                  className="max-w-5 h-auto transition-transform duration-200 ease-linear group-hover:scale-[1.2]"
-                />
-                <span className="absolute left-[-10] top-[-15px] -translate-y-1/2 ml-2 z-50 bg-[#67308F] !text-[#fff] text-xs rounded px-3 py-1 shadow-lg whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  Transfer
-                </span>
-              </button>
-            </li>
-            <li>
-              <SpeakerSelector
-                session={sessionRef.current}
-                sessionRef={sessionRef}
-              />
-            </li>
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-
-  useEffect(() => {
-    if (sessionRef.current) return;
-    CallSessionManager.restoreSessions();
-
-    if (sessionRef.current?.sessionDescriptionHandler?.peerConnection) {
-      const pc = sessionRef.current.sessionDescriptionHandler.peerConnection;
-      attachAudioStream(pc);
+  // Handlers for transfer actions
+  const handleBlindTransfer = async () => {
+    try {
+      await performBlindTransfer({ targetNumber: transferNumber });
+      // Optionally reset phone input here if needed
+    } catch (err) {
+      console.error("❌ Blind transfer failed", err);
     }
-  }, []);
-
-
-  const attachAudioStream = (pc) => {
-    if (!audioRef?.current) return;
-
-    const remoteStream = new MediaStream();
-    pc.getReceivers().forEach((receiver) => {
-      if (receiver.track && receiver.track.kind === "audio") {
-        remoteStream.addTrack(receiver.track);
-      }
-    });
-
-    pc.ontrack = (event) => {
-      if (event.track.kind === "audio") {
-        remoteStream.addTrack(event.track);
-      }
-      audioRef.current.srcObject = remoteStream;
-      audioRef.current.play().catch((err) => {
-        if (err.name === "NotAllowedError") {
-          console.log("Audio autoplay blocked. User interaction required.");
-        }
-      });
-    };
-
-    audioRef.current.srcObject = remoteStream;
-    audioRef.current.play().catch((err) => {
-      console.warn("Audio play error:", err);
-      if (err.name === "NotAllowedError") {
-        console.log("Audio autoplay blocked. User interaction required.");
-      }
-    });
   };
 
-  // Close dialogs when call ends
-  useEffect(() => {
-    if (!canTransfer && showTransferDialog) {
-      setShowTransferDialog(false);
-      setTransferTarget("");
-      setAttendedSession(null);
+  const handleAttendedTransfer = async () => {
+    console.warn("targetNumber", transferNumber);
+    console.warn("dialedPhone", dialedPhone);
+    try {
+      const attended = await startAttendedTransfer({
+        targetNumber: transferNumber,
+        selectedNumber: dialedPhone,
+      });
+      setAttendedStep(true);
+      attendedSessionRef.current = attended;
+    } catch (err) {
+      console.error("❌ Attended transfer failed", err);
+      setAttendedStep(false);
     }
-    
-    if (!canConference && showConferenceDialog) {
-      setShowConferenceDialog(false);
-      setConferenceTarget("");
-      setConferenceSession(null);
+  };
+
+  const handleCompleteAttendedTransfer = async () => {
+    try {
+      await completeAttendedTransfer({
+        originalSession: sessionRef.current,
+        attendedSession: attendedSessionRef.current,
+      });
+      setAttendedStep(false);
+      attendedSessionRef.current = null;
+    } catch (err) {
+      console.error("❌ Completing attended transfer failed", err);
     }
-  }, [canTransfer, canConference, showTransferDialog, showConferenceDialog]);
+  };
 
   return (
     <div
@@ -1335,14 +166,14 @@ const DialPadModal = () => {
       style={{
         top: dragPos.y,
         left: dragPos.x,
-        width: 360,
+        width: 320,
         minHeight: 120,
         cursor: dragging ? "grabbing" : "grab",
         userSelect: "none",
       }}
     >
       <div
-        className="w-full px-4 h-12 py-2 bg-secondary text-white rounded-t-lg flex justify-between items-center cursor-move"
+        className="w-full px-4 py-2 bg-secondary text-white rounded-t-lg flex justify-between items-center cursor-move"
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
       >
@@ -1350,30 +181,144 @@ const DialPadModal = () => {
           {sessionRef?.current &&
           sessionRef?.current?.state === SessionState?.Initial
             ? "Incoming Call"
-            : `Calling Dial Pad`}
+            : `Calling ${
+                session ? session.remoteIdentity?.uri?.user || "" : ""
+              }`}
         </h5>
+        <button className="cursor-pointer" onClick={handleEndCall}>
+          <img src={closeCallicon} className="" alt="" />
+        </button>
       </div>
-     <>
-      <div
-        className={`relative flex bg-white rounded-2xl w-[calc(100%-32px)] [@media(min-height:850px)]:h-[calc(100%-50px)] m-4 ${
-          isMobileView && hasActiveLines ? "sm:block" : ""
-        }`}
-        style={{ boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.1)" }}
-      >
-        {hasActiveLines ? (
-          renderCallScreen()
-        ) : (
-          renderDialPad()
-        )}
+      <div className="p-4 flex flex-col items-center justify-center gap-3">
+        <div className="relative group">
+          <img src={avtarIcon} alt="" />
+          <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 bg-[#67308F] text-[#fff] text-xs rounded px-3 py-1 shadow-lg whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            User Avatar
+          </span>
+        </div>
+        {/* Show Receive button only if incoming call and not yet answered */}
+        {sessionRef.current &&
+          sessionRef.current.state === SessionState.Initial && (
+            <button
+              className="bg-green-600 text-white px-4 py-1 rounded text-xs mt-2"
+              onClick={handleReceiveCall}
+            >
+              Receive Call
+            </button>
+          )}
+        <div className="relative group">
+          <p>{formatDuration(duration || 0)}</p>
+        </div>
+        {/* --- Transfer Input and Buttons --- */}
+        <div className="w-full flex flex-col items-center gap-2 mt-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={10}
+            value={transferNumber}
+            onChange={(e) => {
+              const value = e.target.value;
+              setTransferNumber(value.replace(/\D/g, "").slice(0, 10));
+            }}
+            placeholder="Number to transfer"
+            className="border rounded px-2 py-1 w-full max-w-[180px] text-center"
+            disabled={attendedStep}
+          />
+          <div className="flex gap-2 w-full max-w-[180px]">
+            <button
+              className="flex-1 bg-[#67308F] text-white rounded px-2 py-1 text-xs"
+              onClick={handleBlindTransfer}
+              disabled={!transferNumber || attendedStep}
+              type="button"
+            >
+              Blind Transfer
+            </button>
+            <button
+              className="flex-1 bg-[#3b82f6] text-white rounded px-2 py-1 text-xs"
+              onClick={handleAttendedTransfer}
+              disabled={!transferNumber || attendedStep}
+              type="button"
+            >
+              Attended Transfer
+            </button>
+          </div>
+          {attendedStep && (
+            <>
+              <button
+                className="w-full bg-green-600 text-white rounded px-2 py-1 text-xs mt-2"
+                onClick={handleCompleteAttendedTransfer}
+                type="button"
+              >
+                Complete Attended Transfer
+              </button>
+              <button
+                onClick={cancelAttendedTransfer}
+                className="w-full bg-red-600 text-white rounded px-2 py-1 text-xs mt-2"
+              >
+                Cancel Attended Transfer
+              </button>
+            </>
+          )}
+        </div>
+        {/* --- End Transfer Input and Buttons --- */}
+        {/* Conference number input */}
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={conferenceNumber}
+          onChange={(e) => {
+            // Only allow numbers
+            const value = e.target.value || "";
+            const val = value.replace(/\D/g, "");
+            setConferenceNumber(val);
+          }}
+          placeholder="Conference Number"
+          className="border rounded px-2 py-1 w-full max-w-[180px] text-center mb-2"
+        />
       </div>
-      <audio
-        ref={audioRef}
-        autoPlay
-        hidden
-        playsInline
-        onError={(e) => console.warn("Audio element error:", e)}
-      />
-    </>
+      <div className="relative block w-full m-0 py-2 border-t-[1px] border-[#ebe6e7]">
+        <ul className="flex flex-wrap items-center justify-center gap-2.5">
+          <li>
+            <MuteButton sessionRef={sessionRef} />
+          </li>
+          <li>
+            <HoldButton sessionRef={sessionRef} />
+          </li>
+          <li style={{ position: "relative" }}>
+            <span ref={keypadBtnRef}>
+              <KeypadButton
+                sessionRef={sessionRef}
+                setShowDTMF={setShowDTMF}
+                handleSendDTMF={handleSendDTMF}
+                showDTMF={showDTMF}
+              />
+            </span>
+          </li>
+          <li>
+            <RecordButton sessionRef={sessionRef} />
+          </li>
+          {/* <li>
+            <ConferenceButton
+              session={session}
+              sessionRef={sessionRef}
+              onConference={(conferenceSession) => {
+                // Optional callback when conference is established
+              }}
+            />
+          </li> */}
+          <li>
+            <ForwardButton
+              session={session}
+              userAgent={userAgentRef.current} // Use this instead of userAgent
+            />
+          </li>
+          <li>
+            <SpeakerSelector session={session} sessionRef={sessionRef} />
+          </li>
+        </ul>
+      </div>
     </div>
   );
 };

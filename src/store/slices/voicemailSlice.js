@@ -97,7 +97,6 @@ const voicemailSlice = createSlice({
       .addCase(fetchVoiceMail.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || action.error.message;
-        state.data = [];
       });
   },
 });

@@ -32,7 +32,7 @@ const TableSkeleton = ({ rows, columns, thdata = [] }) => (
       <thead className="sticky top-0 bg-secondary text-white z-10">
         <tr>
           {thdata?.length > 0
-            ? thdata.map((header, i) => (
+            ? thdata?.map((header, i) => (
                 <th
                   key={i}
                   className={`border-b-[1px] border-gray-200 px-4 py-2${
@@ -46,16 +46,17 @@ const TableSkeleton = ({ rows, columns, thdata = [] }) => (
                   {header}
                 </th>
               ))
-            : ["Number", "Status", "Date & Time"].map((text, i) => (
-                <th
-                  key={i}
-                  className={`border-b-[1px] border-gray-200 px-4 py-2${
-                    i === 1 ? " text-center" : i === 2 ? " text-right" : ""
-                  }`}
-                >
-                  {text}
-                </th>
-              ))}
+            : [
+                <th className="border-b-[1px] border-gray-200 px-4 py-2">
+                  Number
+                </th>,
+                <th className="border-b-[1px] border-gray-200 px-4 py-2 text-center">
+                  Status
+                </th>,
+                <th className="border-b-[1px] border-gray-200 px-4 py-2 text-right">
+                  Date & Time
+                </th>,
+              ]}
         </tr>
       </thead>
       <tbody>
