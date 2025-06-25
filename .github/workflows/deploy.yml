@@ -16,4 +16,10 @@ jobs:
           $LogFile = "$LogPath/deploy.log"
           Add-Content -Path $LogFile -Value "`n===== Pulling latest code - $(Get-Date) ====="
           git -C "E:\test\react\react" pull origin main
+          Add-Content -Path $LogFile -Value "===== Pulling latest code completed - $(Get-Date) ====="
+          
+          Add-Content -Path $LogFile -Value "===== Starting build process - $(Get-Date) ====="
+          cd "E:\test\react\react"
+          npm run build
+          Add-Content -Path $LogFile -Value "===== Build process completed - $(Get-Date) ====="
         shell: powershell
