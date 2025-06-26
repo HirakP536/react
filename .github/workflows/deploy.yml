@@ -31,9 +31,9 @@ jobs:
           $BuildPath = "E:\test\react\react\build"
           if (Test-Path $BuildPath) {
             Copy-Item -Path $BuildPath -Destination $ArchiveFolder -Recurse
-            Add-Content -Path $LogFile -Value "===== Old build archived successfully - $(Get-Date) ====="
+            Add-Content -Path $LogFile -Value "===== Old build archived successfully - $(Get-Date) ===="
           } else {
-            Add-Content -Path $LogFile -Value "===== No previous build found to archive - $(Get-Date) ====="
+            Add-Content -Path $LogFile -Value "===== No previous build found to archive - $(Get-Date) ===="
           }
           
           Add-Content -Path $LogFile -Value "===== Starting build process - $(Get-Date) ====="
