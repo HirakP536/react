@@ -18,6 +18,24 @@ jobs:
           git -C "E:\test\react\react" pull origin main
           Add-Content -Path $LogFile -Value "===== Pulling latest code completed - $(Get-Date) ====="
           
+          # Create archive directory if it doesn't exist
+          $ArchivePath = "E:\test\react\archive"
+          if (!(Test-Path $ArchivePath)) { New-Item -ItemType Directory -Path $ArchivePath }
+          
+          # Archive old build with timestamp
+          $Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+          $ArchiveFolder = "$ArchivePath\build_$Timestamp"
+          Add-Content -Path $LogFile -Value "===== Archiving old build to $ArchiveFolder - $(Get-Date) ====="
+          
+          # Check if build directory exists before copying
+          $BuildPath = "E:\test\react\react\build"
+          if (Test-Path $BuildPath) {
+            Copy-Item -Path $BuildPath -Destination $ArchiveFolder -Recurse
+            Add-Content -Path $LogFile -Value "===== Old build archived successfully - $(Get-Date) ====="
+          } else {
+            Add-Content -Path $LogFile -Value "===== No previous build found to archive - $(Get-Date) ====="
+          }
+          
           Add-Content -Path $LogFile -Value "===== Starting build process - $(Get-Date) ====="
           cd "E:\test\react\react"
           npm run build
