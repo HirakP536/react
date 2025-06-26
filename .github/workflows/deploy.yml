@@ -28,7 +28,7 @@ jobs:
           Add-Content -Path $LogFile -Value "===== Archiving old build to $ArchiveFolder - $(Get-Date) ====="
           
           # Check if build directory exists before copying
-          $BuildPath = "E:\test\react\react\build"
+          $BuildPath = "E:\test\react\react\dist"
           if (Test-Path $BuildPath) {
             Copy-Item -Path $BuildPath -Destination $ArchiveFolder -Recurse
             Add-Content -Path $LogFile -Value "===== Old build archived successfully - $(Get-Date) ===="
