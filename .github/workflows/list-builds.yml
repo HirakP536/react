@@ -1,0 +1,34 @@
+name: List Available Builds for Rollback
+
+on:
+  workflow_dispatch:
+
+jobs:
+  list-builds:
+    runs-on: self-hosted
+    steps:
+      - name: List available builds
+        run: |
+          $ArchivePath = "E:\test\react\archive"
+          Write-Host "Available builds for rollback:"
+          Write-Host "============================"
+          
+          if (!(Test-Path $ArchivePath)) {
+            Write-Host "No archived builds found."
+            exit 0
+          }
+          
+          $Builds = Get-ChildItem -Path $ArchivePath -Directory | Sort-Object -Property LastWriteTime -Descending
+          
+          if ($Builds.Count -eq 0) {
+            Write-Host "No archived builds found."
+            exit 0
+          }
+          
+          foreach ($Build in $Builds) {
+            $CreationTime = $Build.LastWriteTime
+            Write-Host "$($Build.Name) - Created on $CreationTime"
+          }
+          
+          Write-Host "`nTo perform a rollback, run the 'Rollback to Previous Build' workflow and enter the build folder name."
+        shell: powershell
