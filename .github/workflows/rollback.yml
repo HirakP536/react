@@ -25,7 +25,7 @@ jobs:
           
           $BuildFolder = "${{ github.event.inputs.build_folder }}"
           $ArchivePath = "E:\test\react\archive\$BuildFolder"
-          $CurrentBuildPath = "E:\test\react\react\build"
+          $CurrentBuildPath = "E:\test\react\react\dist"
           
           Add-Content -Path $LogFile -Value "`n===== Starting rollback to $BuildFolder - $(Get-Date) ====="
           
