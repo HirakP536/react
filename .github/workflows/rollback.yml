@@ -1,66 +1,49 @@
-name: Rollback to Previous Build
+name: Auto Pull and Restart Specific IIS Site
 
 on:
-  workflow_dispatch:
-    inputs:
-      build_folder:
-        description: 'Build folder name (e.g., build_2025-06-26_14-30-00)'
-        required: true
-        type: string
-      confirm_rollback:
-        description: 'Type "CONFIRM" to proceed with rollback'
-        required: true
-        type: string
+  push:
+    branches:
+      - main
 
 jobs:
-  rollback:
+  deploy:
     runs-on: self-hosted
-    if: ${{ github.event.inputs.confirm_rollback == 'CONFIRM' }}
     steps:
-      - name: Rollback to previous build
+      - name: Pull latest code
         run: |
           $LogPath = "C:/logs/repo-name"
           if (!(Test-Path $LogPath)) { New-Item -ItemType Directory -Path $LogPath }
-          $LogFile = "$LogPath/rollback.log"
+          $LogFile = "$LogPath/deploy.log"
+          Add-Content -Path $LogFile -Value "`n===== Pulling latest code - $(Get-Date) ====="
+          git -C "E:\test\react\react" pull origin main
+          Add-Content -Path $LogFile -Value "===== Pulling latest code completed - $(Get-Date) ====="
           
-          $BuildFolder = "${{ github.event.inputs.build_folder }}"
-          $ArchivePath = "E:\test\react\archive\$BuildFolder"
-          $CurrentBuildPath = "E:\test\react\react\build"
+          # Create archive directory if it doesn't exist
+          $ArchivePath = "E:\test\react\archive"
+          if (!(Test-Path $ArchivePath)) { New-Item -ItemType Directory -Path $ArchivePath }
           
-          Add-Content -Path $LogFile -Value "`n===== Starting rollback to $BuildFolder - $(Get-Date) ====="
-          
-          # Check if the specified archive folder exists
-          if (!(Test-Path $ArchivePath)) {
-            Add-Content -Path $LogFile -Value "ERROR: Archive folder '$BuildFolder' not found - $(Get-Date)"
-            exit 1
-          }
-          
-          # Create archive of current build before replacing it
+          # Archive old build with timestamp
           $Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-          $RollbackArchive = "E:\test\react\archive\pre_rollback_$Timestamp"
-          Add-Content -Path $LogFile -Value "===== Archiving current build to $RollbackArchive - $(Get-Date) ====="
+          $ArchiveFolder = "$ArchivePath\build_$Timestamp"
+          Add-Content -Path $LogFile -Value "===== Archiving old build to $ArchiveFolder - $(Get-Date) ====="
           
-          if (Test-Path $CurrentBuildPath) {
-            Copy-Item -Path $CurrentBuildPath -Destination $RollbackArchive -Recurse
-            Add-Content -Path $LogFile -Value "===== Current build archived successfully - $(Get-Date) ====="
+          # Check if build directory exists before copying
+          $BuildPath = "E:\test\react\react\build"
+          if (Test-Path $BuildPath) {
+            Copy-Item -Path $BuildPath -Destination $ArchiveFolder -Recurse
+            Add-Content -Path $LogFile -Value "===== Old build archived successfully - $(Get-Date) ====="
+          } else {
+            Add-Content -Path $LogFile -Value "===== No previous build found to archive - $(Get-Date) ====="
           }
           
-          # Stop the site before replacing files
+          Add-Content -Path $LogFile -Value "===== Starting build process - $(Get-Date) ====="
+          cd "E:\test\react\react"
+          npm run build
+          Add-Content -Path $LogFile -Value "===== Build process completed - $(Get-Date) ====="
+
           Add-Content -Path $LogFile -Value "===== Stopping Server - $(Get-Date) ====="
           & "C:\Windows\System32\inetsrv\appcmd.exe" stop site "voice" 2>&1 | Tee-Object -FilePath $LogFile -Append
           Start-Sleep -Seconds 2
-          
-          # Remove current build and replace with archived build
-          Add-Content -Path $LogFile -Value "===== Replacing current build with $BuildFolder - $(Get-Date) ====="
-          if (Test-Path $CurrentBuildPath) {
-            Remove-Item -Path $CurrentBuildPath -Recurse -Force
-          }
-          Copy-Item -Path "$ArchivePath" -Destination $CurrentBuildPath -Recurse
-          Add-Content -Path $LogFile -Value "===== Build replaced successfully - $(Get-Date) ====="
-          
-          # Start the site after replacing files
           Add-Content -Path $LogFile -Value "===== Starting Server - $(Get-Date) ====="
           & "C:\Windows\System32\inetsrv\appcmd.exe" start site "voice" 2>&1 | Tee-Object -FilePath $LogFile -Append
-          
-          Add-Content -Path $LogFile -Value "===== Rollback completed successfully - $(Get-Date) ====="
         shell: powershell
